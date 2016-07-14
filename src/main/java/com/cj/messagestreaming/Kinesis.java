@@ -12,9 +12,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-public class Kinesis {
+public class Kinesis{
 
-    public static <T> Types.Subscription<T> subscribe(KinesisConfig config) {
+    public static Types.Subscription subscribe(KinesisConfig config) {
         return (id) -> subscribe(config, id);
 
     }
@@ -24,7 +24,7 @@ public class Kinesis {
     }
 
 
-    private static <T> Stream<T> subscribe(KinesisConfig config, String idToStartFrom){
+    private static Stream<byte[]> subscribe(KinesisConfig config, String idToStartFrom){
         IRecordProcessor processor = new IRecordProcessor(){
 
             @Override
@@ -51,6 +51,8 @@ public class Kinesis {
         };
 
         Worker worker = new Worker.Builder().recordProcessorFactory(factory).build();
+        
+        //Should we spawn a thread here?
         return null;
     }
 }

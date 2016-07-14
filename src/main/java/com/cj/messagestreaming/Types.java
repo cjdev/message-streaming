@@ -5,8 +5,8 @@ import java.util.stream.Stream;
 
 public class Types {
 
-    public interface Subscription<T> extends Function<String, Stream<T>> {
-        default Stream<T> startingFrom(String pos){
+    public interface Subscription extends Function<String, Stream<byte[]>> {
+        default Stream<byte[]> startingFrom(String pos){
             return this.apply(pos);
         }
     }
