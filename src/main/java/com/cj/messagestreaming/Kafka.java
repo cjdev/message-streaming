@@ -22,8 +22,8 @@ public class Kafka {
     }
 
 
-	public static void publish(KafkaConfig config, Stream<byte[]> data) {
-		
+	public static Types.Publication publish(KafkaConfig config) {
+	    return (data) -> {};
     }
 	
 	
