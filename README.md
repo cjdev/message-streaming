@@ -4,8 +4,10 @@ A functional wrapper for streaming services such as Amazon Kinesis and Kafka wri
 
 For Maven poms:
 
+```
 <dependency>
     <groupId>com.cj</groupId>
     <artifactId>message-streaming</artifactId>
     <version>0.2-SNAPSHOT</version>
 </dependency>
+```
