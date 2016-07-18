@@ -1,4 +1,4 @@
-package com.cj.messagestreaming;
+package com.cj.messagestreaming.kafka;
 
 import java.util.HashMap;
 import java.util.List;
@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import com.cj.messagestreaming.Types;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;

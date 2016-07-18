@@ -1,15 +1,13 @@
-package com.cj.messagestreaming;
+package com.cj.messagestreaming.kinesis;
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor;
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
 import com.amazonaws.services.kinesis.clientlibrary.types.InitializationInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownInput;
+import com.cj.messagestreaming.Types;
 
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class Kinesis{

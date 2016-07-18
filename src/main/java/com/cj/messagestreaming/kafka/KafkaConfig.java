@@ -1,4 +1,4 @@
-package com.cj.messagestreaming;
+package com.cj.messagestreaming.kafka;
 
 import kafka.consumer.ConsumerConfig;
 
