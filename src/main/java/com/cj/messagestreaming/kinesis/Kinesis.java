@@ -12,17 +12,12 @@ import java.util.stream.Stream;
 
 public class Kinesis{
 
-    public static Types.Subscription subscribe(KinesisConfig config) {
-        return (id) -> subscribe(config, id);
-
-    }
-
     public static <T> void publish(KinesisConfig config, Stream<T> data) {
 
     }
 
 
-    private static Stream<byte[]> subscribe(KinesisConfig config, String idToStartFrom){
+    private static Stream<byte[]> subscribe(KinesisConfig config){
         IRecordProcessor processor = new IRecordProcessor(){
 
             @Override

@@ -16,20 +16,11 @@ import scala.collection.JavaConverters;
 
 
 public class Kafka {
-	
-    public static Types.Subscription subscribe(KafkaConfig config) {
-        return (id) -> subscribe(config, id);
-
-    }
-
-
 	public static Types.Publication publish(KafkaConfig config) {
 	    return (data) -> {};
     }
-	
-	
 
-    private static Stream<byte[]> subscribe(KafkaConfig config, String id) {
+    private static Types.Subscription subscribe(KafkaConfig config) {
         final Integer numThreads = 1;
         final String topic = "myCoolTopic";
         ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(config.getConsumerConfig());
@@ -49,7 +40,7 @@ public class Kafka {
         });
         
         Iterable<MessageAndMetadata<byte[], byte[]>> i = JavaConverters.asJavaIterableConverter(it.toIterable()).asJava();
-    	return StreamSupport.stream(i.spliterator(), false).map(metadata->metadata.message());
+    	return (Types.Subscription) StreamSupport.stream(i.spliterator(), false).map(MessageAndMetadata::message);
 	}
 
 }
