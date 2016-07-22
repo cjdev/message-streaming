@@ -15,33 +15,6 @@ class PubSubTest extends FlatSpec with Matchers {
       setImposteriser(ClassImposteriser.INSTANCE)
     }
   }
-
-//  "PubSub" should "do tha stuffz" in {
-//    val data = Set(
-//      "message 1".getBytes(),
-//      "message 2".getBytes()
-//    )
-//    val project = "cj-dev"
-//    val topic = "dddRedirect"
-//    val sub = "sub1"
-//
-//    val pubsubMock = context.mock(classOf[Pubsub])
-//
-//    context.checking(new Expectations {
-//      allowing(pubsubMock).createTopic(project, topic)
-//    })
-//
-//    val config = PubSub.PubSubConfig(project, topic, sub)
-//
-//    val publication = PubSub.publish(config, pubsubMock)
-//    val subscription = PubSub.subscribe(config, pubsubMock)
-//
-//    data.foreach(publication)
-//
-//    context.assertIsSatisfied()
-//  }
-
-
   def expectMessagesToBeSent(dataToPublish: List[Array[Byte]], publisherMock: Publisher, topic: String) =  {
     context.checking(new AbstractExpectations {
       dataToPublish.foreach((data) => oneOf(publisherMock).publish(topic, Message.of(Message.encode(data))))
@@ -52,15 +25,12 @@ class PubSubTest extends FlatSpec with Matchers {
     "message 2".getBytes(),
     "message 3".getBytes()
   )
-
   val messagesToSend = dataToPublish.map(x => Message.of(Message.encode(x)))
 
   "PubSub" should "publish correctly" in {
     //given
     val foo = List(1,2,3)
     val bar = foo.map(x => x + 1)
-
-
     val topic = "topic-1"
     val publisherMock = context.mock(classOf[Publisher])
 
@@ -75,15 +45,16 @@ class PubSubTest extends FlatSpec with Matchers {
     context.assertIsSatisfied()
   }
 
-  "PubSub" should "subscribe subscriberly" in {
+  "PubSub" should "subscribe in a subscriberly fashion" in {
     //given
     val (publish, stream) = PubSub.subscribe()
 
     //when
-//    messagesToSend.foreach(publish(null, null, _, "1"))
-    publish (null, null, messagesToSend(0), "1")
+    messagesToSend.foreach(publish(null, null, _, "1"))
 
     //then
-    stream.head should be (dataToPublish(0))
+    dataToPublish.zip(stream).foreach[Unit]({
+      case (x,y) => {x should be(y)}
+    })
   }
 }
