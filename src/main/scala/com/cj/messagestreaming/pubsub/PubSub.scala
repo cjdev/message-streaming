@@ -3,7 +3,7 @@ package com.cj.messagestreaming.pubsub
 import java.util.concurrent.{CompletableFuture, CompletionStage}
 
 import com.cj.messagestreaming.{Publication, Subscription}
-import com.cj.collections.{IterableBlockingQueue, IteratorFromJava, IteratorStream}
+import com.cj.collections.{IterableBlockingQueue, IteratorStream}
 import com.spotify.google.cloud.pubsub.client.{Message, Publisher, Pubsub, Puller}
 
 object PubSub {
