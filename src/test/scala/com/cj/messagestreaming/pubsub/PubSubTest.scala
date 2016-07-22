@@ -2,10 +2,8 @@ package com.cj.messagestreaming.pubsub
 
 
 import com.spotify.google.cloud.pubsub.client.{Message, Publisher}
-import org.hamcrest.Matcher
-import org.jmock.{AbstractExpectations, Expectations, Mockery}
-import org.jmock.Expectations._
 import org.jmock.lib.legacy.ClassImposteriser
+import org.jmock.{AbstractExpectations, Mockery}
 import org.scalatest.{FlatSpec, Matchers}
 
 class PubSubTest extends FlatSpec with Matchers {
@@ -50,7 +48,7 @@ class PubSubTest extends FlatSpec with Matchers {
     val (publish, stream) = PubSub.subscribe()
 
     //when
-    messagesToSend.foreach(publish(null, null, _, "1"))
+    messagesToSend.foreach(publish(_, "1"))
 
     //then
     dataToPublish.zip(stream).foreach[Unit]({

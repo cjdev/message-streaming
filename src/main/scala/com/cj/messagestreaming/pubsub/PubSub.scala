@@ -4,45 +4,44 @@ import java.util.concurrent.{CompletableFuture, CompletionStage}
 
 import com.cj.messagestreaming.{Publication, Subscription}
 import com.cj.collections.{IterableBlockingQueue, IteratorStream}
+import com.spotify.google.cloud.pubsub.client.Puller.MessageHandler
 import com.spotify.google.cloud.pubsub.client.{Message, Publisher, Pubsub, Puller}
 
 object PubSub {
   case class PubSubConfig(project: String, topic: String)
 
   def makeSubscription(config: PubSubConfig, subscriberId: String): Subscription = {
-//    val pubsubClient = Pubsub.builder().build()
-//    pubsubClient.createSubscription(config.project, config.topic)
-//
-//    val (callback, stream) = subscribe()
-//
-//    val handler : Puller.MessageHandler = new MessageHandler {
-//      override def handleMessage(puller: Puller, s: String, message: Message, s1: String): CompletionStage[String] =
-//        callback(puller,s,message,s1)
-//    }
-//
-//    Puller.builder()
-//      .pubsub(pubsubClient)
-//      .project(config.project)
-//      .subscription(subscriberId)
-//      .concurrency(32)
-//      .messageHandler(handler)
-//      .build()
-//
-//    stream
-    ???
+    val pubsubClient = Pubsub.builder().build()
+
+    pubsubClient.createSubscription(config.project, config.topic)
+
+    val (enqueueMessage, stream) = subscribe()
+
+    val handler : Puller.MessageHandler = new MessageHandler {
+      override def handleMessage(puller: Puller, s: String, message: Message, ackId: String): CompletionStage[String] =
+        enqueueMessage(message,ackId)
+    }
+
+    Puller.builder()
+      .pubsub(pubsubClient)
+      .project(config.project)
+      .subscription(subscriberId)
+      .messageHandler(handler)
+      .build()
+
+    stream
   }
 
+  type AckId = String
+  type PubSubCallback = (Message, AckId) => CompletionStage[String]
 
-//  def bar[T]( q : IterableBlockingQueue[T]) : Stream[T] = {
-//    JavaConverters.asScalaIteratorConverter(q.iterator()).asScala.toStream
-//  }
-
-  protected[pubsub] def subscribe() : ((Puller, String, Message, String) => CompletionStage[String], Subscription) = {
+  protected[pubsub] def subscribe() : (PubSubCallback, Subscription) = {
+    //the pubsubcallback writes to a queue
+    //and the subscription reads from the same queue
     val q = new IterableBlockingQueue[Array[Byte]]()
-    val stream = new IteratorStream(q.iterator())
-//    val stream = JavaConverters.asScalaIteratorConverter(q.iterator()).asScala.toStream
+    val stream = new IteratorStream(q.iterator)
 
-    def callback = (_ : Puller, _ : String, message : Message, ackId : String) => {
+    def callback = (message : Message, ackId : AckId) => {
       q.add(message.decodedData())
       CompletableFuture.completedFuture(ackId)
     }
@@ -58,7 +57,6 @@ object PubSub {
     val publisher = Publisher.builder()
       .pubsub(pubsubClient)
       .project(config.project)
-      .concurrency(128)
       .build()
 
     publish(config.topic, publisher)
