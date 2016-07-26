@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>message-streaming</artifactId>
-    <version>0.6.SNAPSHOT</version>
+    <version>0.6-SNAPSHOT</version>
 
     <build>
         <sourceDirectory>src/main/scala</sourceDirectory>
@@ -79,7 +79,7 @@
             </plugin>
         </plugins>
     </build>
-    
+
     <distributionManagement>
         <repository>
             <id>libs-releases</id>
