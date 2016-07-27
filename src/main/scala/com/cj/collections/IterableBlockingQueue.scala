@@ -20,7 +20,7 @@ class IterableBlockingQueue[T] extends java.lang.Iterable[T] {
     def hasNext: Boolean = {
       try
         //TODO: Waiting 300ms is a naive solution to blocking.
-        while (queue.isEmpty && !isDone) Thread.sleep(300)
+        while (queue.isEmpty && !isDone) {Thread.sleep(300) }
 
       catch {
         case e: InterruptedException => {

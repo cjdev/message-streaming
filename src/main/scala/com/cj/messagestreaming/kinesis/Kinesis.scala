@@ -14,6 +14,10 @@ import com.cj.messagestreaming.{Publication, Subscription}
 
 import scala.compat.java8.FunctionConverters._
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
+
 object Kinesis {
   case class KinesisProducerConfig(accessKeyId : String, secretKey : String, streamName : String)
   case class KinesisConsumerConfig(accessKeyId : String, secretKey : String, streamName : String, applicationName: String, workerId: String)
@@ -24,11 +28,15 @@ object Kinesis {
 
   def makeSubscription(config: KinesisConsumerConfig): Subscription = {
     val provider = new StaticCredentialsProvider(new BasicAWSCredentials(config.accessKeyId, config.secretKey))
-    val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId)
+    val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId).withRegionName("us-west-1")
 
     val (recordProcessorFactory, stream) = subscribe()
-    print("starting worker")
-    new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build().run()
+    val worker = new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build()
+
+    Future {
+      worker.run()
+    }
+
     stream
   }
 
@@ -46,7 +54,6 @@ object Kinesis {
   }
 
   protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
-    print("Setting up subscription")
     val q = new IterableBlockingQueue[Array[Byte]]()
     val stream = new IteratorStream(q.iterator())
     val factory = new IRecordProcessorFactory {
@@ -54,13 +61,10 @@ object Kinesis {
         override def shutdown(shutdownInput: ShutdownInput): Unit = {}
         override def initialize(initializationInput: InitializationInput): Unit = {}
         override def processRecords(processRecordsInput: ProcessRecordsInput): Unit = {
-          print("Got some records")
           processRecordsInput.getRecords.forEach(((record: Record) => q.add(record.getData.array())).asJava)
         }
       }
     }
     (factory, stream)
   }
-
-  protected[kinesis] def doNothing() = {}
 }
