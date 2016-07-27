@@ -27,7 +27,8 @@ object Kinesis {
     val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId)
 
     val (recordProcessorFactory, stream) = subscribe()
-    new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build()
+    print("starting worker")
+    new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build().run()
     stream
   }
 
@@ -45,6 +46,7 @@ object Kinesis {
   }
 
   protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
+    print("Setting up subscription")
     val q = new IterableBlockingQueue[Array[Byte]]()
     val stream = new IteratorStream(q.iterator())
     val factory = new IRecordProcessorFactory {
@@ -52,6 +54,7 @@ object Kinesis {
         override def shutdown(shutdownInput: ShutdownInput): Unit = {}
         override def initialize(initializationInput: InitializationInput): Unit = {}
         override def processRecords(processRecordsInput: ProcessRecordsInput): Unit = {
+          print("Got some records")
           processRecordsInput.getRecords.forEach(((record: Record) => q.add(record.getData.array())).asJava)
         }
       }
@@ -59,4 +62,5 @@ object Kinesis {
     (factory, stream)
   }
 
+  protected[kinesis] def doNothing() = {}
 }
