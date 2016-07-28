@@ -50,6 +50,7 @@ object Kinesis {
     val provider : StaticCredentialsProvider = new StaticCredentialsProvider(new BasicAWSCredentials(accessKeyId, secretKey))
     val cfg : KinesisProducerConfiguration = new KinesisProducerConfiguration()
       .setCredentialsProvider(provider)
+      .setRegion("us-west-1")
     new KinesisProducer(cfg)
   }
 
