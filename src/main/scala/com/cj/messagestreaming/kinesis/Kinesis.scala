@@ -23,12 +23,17 @@ object Kinesis {
   case class KinesisConsumerConfig(accessKeyId : String, secretKey : String, streamName : String, applicationName: String, workerId: String)
 
   def makePublication(config: KinesisProducerConfig): Publication = {
-    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey))
+    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, None))
   }
 
-  def makeSubscription(config: KinesisConsumerConfig): Subscription = {
+  def makePublication(config: KinesisProducerConfig, region: String): Publication = {
+    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, Some(region)))
+  }
+
+  protected def makeSubscription(config: KinesisConsumerConfig, region : Option[String]): Subscription = {
     val provider = new StaticCredentialsProvider(new BasicAWSCredentials(config.accessKeyId, config.secretKey))
-    val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId).withRegionName("us-west-1")
+    val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId)
+    region.foreach(kinesisConfig.withRegionName(_))
 
     val (recordProcessorFactory, stream) = subscribe()
     val worker = new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build()
@@ -46,11 +51,10 @@ object Kinesis {
     }
   }
 
-  protected[kinesis] def getKinesisProducer(accessKeyId : String, secretKey : String) : KinesisProducer = {
+  protected[kinesis] def getKinesisProducer(accessKeyId : String, secretKey : String, region : Option[String]) : KinesisProducer = {
     val provider : StaticCredentialsProvider = new StaticCredentialsProvider(new BasicAWSCredentials(accessKeyId, secretKey))
-    val cfg : KinesisProducerConfiguration = new KinesisProducerConfiguration()
-      .setCredentialsProvider(provider)
-      .setRegion("us-west-1")
+    val cfg : KinesisProducerConfiguration = new KinesisProducerConfiguration().setCredentialsProvider(provider)
+    region.foreach(cfg.setRegion(_))
     new KinesisProducer(cfg)
   }
 
