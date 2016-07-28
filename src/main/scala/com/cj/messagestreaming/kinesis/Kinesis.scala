@@ -30,19 +30,12 @@ object Kinesis {
     produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, Some(region)))
   }
 
-  protected def makeSubscription(config: KinesisConsumerConfig, region : Option[String]): Subscription = {
-    val provider = new StaticCredentialsProvider(new BasicAWSCredentials(config.accessKeyId, config.secretKey))
-    val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId)
-    region.foreach(kinesisConfig.withRegionName(_))
+  def makeSubscription(config: KinesisConsumerConfig, region : String): Subscription = {
+    configureSubscription(config, Some(region))
+  }
 
-    val (recordProcessorFactory, stream) = subscribe()
-    val worker = new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build()
-
-    Future {
-      worker.run()
-    }
-
-    stream
+  def makeSubscription(config: KinesisConsumerConfig): Subscription = {
+    configureSubscription(config, None)
   }
 
   protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
@@ -56,6 +49,21 @@ object Kinesis {
     val cfg : KinesisProducerConfiguration = new KinesisProducerConfiguration().setCredentialsProvider(provider)
     region.foreach(cfg.setRegion(_))
     new KinesisProducer(cfg)
+  }
+
+  protected[kinesis] def configureSubscription(config: KinesisConsumerConfig, region : Option[String]): Subscription = {
+    val provider = new StaticCredentialsProvider(new BasicAWSCredentials(config.accessKeyId, config.secretKey))
+    val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId)
+    region.foreach(kinesisConfig.withRegionName(_))
+
+    val (recordProcessorFactory, stream) = subscribe()
+    val worker = new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build()
+
+    Future {
+      worker.run()
+    }
+
+    stream
   }
 
   protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
