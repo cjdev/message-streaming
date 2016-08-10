@@ -2,7 +2,7 @@ package com.cj.messagestreaming.kinesis
 
 import java.nio.ByteBuffer
 
-import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.internal.StaticCredentialsProvider
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
@@ -13,48 +13,40 @@ import com.cj.collections.{IterableBlockingQueue, IteratorStream}
 import com.cj.messagestreaming.{Publication, Subscription}
 
 import scala.compat.java8.FunctionConverters._
-
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 
 object Kinesis {
-  case class KinesisProducerConfig(accessKeyId : String, secretKey : String, streamName : String)
-  case class KinesisConsumerConfig(accessKeyId : String, secretKey : String, streamName : String, applicationName: String, workerId: String)
-
-  def makePublication(config: KinesisProducerConfig): Publication = {
-    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, None))
-  }
-
-  def makePublication(config: KinesisProducerConfig, region: String): Publication = {
-    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, Some(region)))
-  }
-
-  def makeSubscription(config: KinesisConsumerConfig, region : String): Subscription = {
-    configureSubscription(config, Some(region))
-  }
-
-  def makeSubscription(config: KinesisConsumerConfig): Subscription = {
-    configureSubscription(config, None)
-  }
-
-  protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
-    (byteArray : Array[Byte])=> {
-      producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray))
+  case class KinesisProducerConfig(accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String) {
+    def this(streamName: String) {
+      this(None, None, None, streamName)
+    }
+    def this(accessKeyId: String, secretKey: String, region: String, streamName: String) {
+      this(Some(accessKeyId), Some(secretKey), Some(region), streamName)
     }
   }
 
-  protected[kinesis] def getKinesisProducer(accessKeyId : String, secretKey : String, region : Option[String]) : KinesisProducer = {
-    val provider : StaticCredentialsProvider = new StaticCredentialsProvider(new BasicAWSCredentials(accessKeyId, secretKey))
-    val cfg : KinesisProducerConfiguration = new KinesisProducerConfiguration().setCredentialsProvider(provider)
-    region.foreach(cfg.setRegion(_))
-    new KinesisProducer(cfg)
+  case class KinesisConsumerConfig(accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String) {
+    def this(streamName: String, applicationName: String, workerId: String) {
+      this(None, None, None, streamName, applicationName, workerId)
+    }
+    def this (accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId:String) {
+      this(Some(accessKeyId), Some(secretKey), Some(region), streamName, applicationName, workerId)
+    }
   }
 
-  protected[kinesis] def configureSubscription(config: KinesisConsumerConfig, region : Option[String]): Subscription = {
-    val provider = new StaticCredentialsProvider(new BasicAWSCredentials(config.accessKeyId, config.secretKey))
+  def makePublication(config: KinesisProducerConfig): Publication = {
+    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, config.region))
+  }
+
+  def makeSubscription(config: KinesisConsumerConfig): Subscription = {
+    val provider: AWSCredentialsProvider= {for {
+      a <- config.accessKeyId
+      s <- config.secretKey
+    } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))}.getOrElse(new DefaultAWSCredentialsProviderChain)
     val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId)
-    region.foreach(kinesisConfig.withRegionName(_))
+    config.region.foreach(kinesisConfig.withRegionName)
 
     val (recordProcessorFactory, stream) = subscribe()
     val worker = new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build()
@@ -64,6 +56,23 @@ object Kinesis {
     }
 
     stream
+  }
+
+  protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
+    (byteArray : Array[Byte])=> {
+      producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray))
+    }
+  }
+
+  protected[kinesis] def getKinesisProducer(accessKeyId: Option[String], secretKey : Option[String], region : Option[String]) : KinesisProducer = {
+    val provider = {for {
+      a <- accessKeyId
+      s <- secretKey
+    } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))}.getOrElse(new DefaultAWSCredentialsProviderChain)
+    val cfg : KinesisProducerConfiguration = new KinesisProducerConfiguration()
+    cfg.setCredentialsProvider(provider)
+    region.foreach(cfg.setRegion)
+    new KinesisProducer(cfg)
   }
 
   protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
