@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 
 object Kinesis {
-  case class KinesisProducerConfig(accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String) {
+  case class KinesisProducerConfig private (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String) {
     def this(streamName: String) {
       this(None, None, None, streamName)
     }
@@ -27,7 +27,7 @@ object Kinesis {
     }
   }
 
-  case class KinesisConsumerConfig(accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String) {
+  case class KinesisConsumerConfig private (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String) {
     def this(streamName: String, applicationName: String, workerId: String) {
       this(None, None, None, streamName, applicationName, workerId)
     }
