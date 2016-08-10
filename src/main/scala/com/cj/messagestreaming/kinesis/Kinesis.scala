@@ -18,21 +18,24 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 
 object Kinesis {
-  case class KinesisProducerConfig private (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String) {
-    def this(streamName: String) {
-      this(None, None, None, streamName)
+  case class KinesisProducerConfig private[Kinesis] (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String)
+  object KinesisProducerConfig {
+    def apply(streamName: String) {
+      KinesisProducerConfig(None, None, None, streamName)
     }
-    def this(accessKeyId: String, secretKey: String, region: String, streamName: String) {
-      this(Some(accessKeyId), Some(secretKey), Some(region), streamName)
+    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String) {
+      KinesisProducerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName)
     }
   }
 
-  case class KinesisConsumerConfig private (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String) {
-    def this(streamName: String, applicationName: String, workerId: String) {
-      this(None, None, None, streamName, applicationName, workerId)
+  case class KinesisConsumerConfig private[Kinesis] (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String)
+  object KinesisConsumerConfig {
+    def apply(streamName: String, applicationName: String, workerId: String) {
+      KinesisConsumerConfig(None, None, None, streamName, applicationName, workerId)
     }
-    def this (accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId:String) {
-      this(Some(accessKeyId), Some(secretKey), Some(region), streamName, applicationName, workerId)
+
+    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId: String) {
+      KinesisConsumerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName, applicationName, workerId)
     }
   }
 
