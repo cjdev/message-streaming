@@ -20,21 +20,21 @@ import scala.concurrent.ExecutionContext.Implicits.global
 object Kinesis {
   case class KinesisProducerConfig private[Kinesis] (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String)
   object KinesisProducerConfig {
-    def apply(streamName: String) {
+    def apply(streamName: String) : KinesisProducerConfig = {
       KinesisProducerConfig(None, None, None, streamName)
     }
-    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String) {
+    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String) : KinesisProducerConfig =  {
       KinesisProducerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName)
     }
   }
 
   case class KinesisConsumerConfig private[Kinesis] (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String)
   object KinesisConsumerConfig {
-    def apply(streamName: String, applicationName: String, workerId: String) {
+    def apply(streamName: String, applicationName: String, workerId: String) : KinesisConsumerConfig =  {
       KinesisConsumerConfig(None, None, None, streamName, applicationName, workerId)
     }
 
-    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId: String) {
+    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId: String) : KinesisConsumerConfig =  {
       KinesisConsumerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName, applicationName, workerId)
     }
   }
