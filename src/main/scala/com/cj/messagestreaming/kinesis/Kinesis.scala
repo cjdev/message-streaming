@@ -93,12 +93,12 @@ object Kinesis {
         override def shutdown(shutdownInput: ShutdownInput): Unit = { logger.info(s"Shutting down record processor. Reason: ${shutdownInput.getShutdownReason}.")}
         override def initialize(initializationInput: InitializationInput): Unit = { logger.info(s"Initializing record processor with shardId ${initializationInput.getShardId} and sequence number ${initializationInput.getExtendedSequenceNumber}.")}
         override def processRecords(processRecordsInput: ProcessRecordsInput): Unit = {
-          val bar: Record => Unit =
+          val processRecord: Record => Unit =
             record => {
               q.add(record.getData.array())
               processRecordsInput.getCheckpointer.checkpoint(record)
             }
-          processRecordsInput.getRecords.forEach(bar.asJava)
+          processRecordsInput.getRecords.forEach(processRecord.asJava)
         }
       }
     }
