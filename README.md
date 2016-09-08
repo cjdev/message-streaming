@@ -8,6 +8,6 @@ For Maven poms:
 <dependency>
     <groupId>com.cj</groupId>
     <artifactId>message-streaming</artifactId>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.11-SNAPSHOT</version>
 </dependency>
 ```
