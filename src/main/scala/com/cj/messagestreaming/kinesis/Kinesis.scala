@@ -15,9 +15,13 @@ import com.cj.messagestreaming.{Publication, Subscription}
 import scala.compat.java8.FunctionConverters._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import org.slf4j.LoggerFactory
+
+import scala.util.{Try, Success, Failure}
 
 
 object Kinesis {
+  lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
   case class KinesisProducerConfig private[Kinesis] (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String)
   object KinesisProducerConfig {
     def apply(streamName: String) : KinesisProducerConfig = {
@@ -55,8 +59,11 @@ object Kinesis {
     val worker = new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build()
 
     Future {
-      worker.run()
-    }
+      Try(worker.run())
+    }.onComplete({
+      case Success(s) => logger.error(s"Disaster strikes! Unexpected worker completion. Message: ${s}")
+      case Failure(e) => logger.error(s"Disaster strikes! The worker has terminated abnormally. Error: ${e}")
+    })
 
     stream
   }
@@ -83,10 +90,15 @@ object Kinesis {
     val stream = new IteratorStream(q.iterator())
     val factory = new IRecordProcessorFactory {
       override def createProcessor(): IRecordProcessor = new IRecordProcessor {
-        override def shutdown(shutdownInput: ShutdownInput): Unit = {}
-        override def initialize(initializationInput: InitializationInput): Unit = {}
+        override def shutdown(shutdownInput: ShutdownInput): Unit = { logger.info(s"Shutting down record processor. Reason: ${shutdownInput.getShutdownReason}.")}
+        override def initialize(initializationInput: InitializationInput): Unit = { logger.info(s"Initializing record processor with shardId ${initializationInput.getShardId} and sequence number ${initializationInput.getExtendedSequenceNumber}.")}
         override def processRecords(processRecordsInput: ProcessRecordsInput): Unit = {
-          processRecordsInput.getRecords.forEach(((record: Record) => q.add(record.getData.array())).asJava)
+          val bar: Record => Unit =
+            record => {
+              q.add(record.getData.array())
+              processRecordsInput.getCheckpointer.checkpoint(record)
+            }
+          processRecordsInput.getRecords.forEach(bar.asJava)
         }
       }
     }

@@ -2,6 +2,7 @@ package com.cj.messagestreaming.kinesis
 
 import java.nio.ByteBuffer
 
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
 import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.KinesisProducer
@@ -11,7 +12,6 @@ import org.jmock.lib.legacy.ClassImposteriser
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
-
 import org.hamcrest.Matchers._
 
 class KinesisTest extends FlatSpec with Matchers {
@@ -38,9 +38,16 @@ class KinesisTest extends FlatSpec with Matchers {
   "Kinesis" should "put things in the stream when new records are processed" in {
     //given
     val (factory, stream) = Kinesis.subscribe()
+    class FakeCheckPointer extends IRecordProcessorCheckpointer {
+      override def checkpoint(): Unit = println("CHECKPOINTING!")
+      override def checkpoint(record: Record): Unit = println(s"CHECKPOINTING! Record is $record")
+      override def checkpoint(sequenceNumber: String): Unit = println(s"CHECKPOINTING! Sequence Number is $sequenceNumber")
+      override def checkpoint(sequenceNumber: String, subSequenceNumber: Long): Unit = println(s"CHECKPOINTING! Sequence and subSequence numbers are $sequenceNumber $subSequenceNumber")
+    }
+    val checkpointer = new FakeCheckPointer
 
     //when
-    factory.createProcessor().processRecords(new ProcessRecordsInput().withRecords(recordsToSend.asJava))
+    factory.createProcessor().processRecords(new ProcessRecordsInput().withRecords(recordsToSend.asJava).withCheckpointer(checkpointer))
 
     //then
     dataToPublish.zip(stream).foreach[Unit]({
