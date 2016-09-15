@@ -74,7 +74,7 @@ object Kinesis {
     }
   }
 
-  protected[kinesis] def getKinesisProducer(accessKeyId: Option[String], secretKey : Option[String], region : Option[String]) : KinesisProducer = {
+  def getKinesisProducer(accessKeyId: Option[String], secretKey : Option[String], region : Option[String]) : KinesisProducer = {
     val provider = {for {
       a <- accessKeyId
       s <- secretKey
