@@ -8,37 +8,41 @@ import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProces
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.model.Record
-import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration}
+import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
 import com.cj.collections.{IterableBlockingQueue, IteratorStream}
-import com.cj.messagestreaming.{Publication, Subscription}
-
-import scala.compat.java8.FunctionConverters._
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import com.cj.messagestreaming.{ConfirmationContract, Publication, Subscription}
+import com.google.common.util.concurrent.ListenableFuture
 import org.slf4j.LoggerFactory
 
-import scala.util.{Try, Success, Failure}
-
+import scala.compat.java8.FunctionConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 object Kinesis {
+
   lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
-  case class KinesisProducerConfig private[Kinesis] (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String)
+
+  case class KinesisProducerConfig private[Kinesis](accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String)
+
   object KinesisProducerConfig {
-    def apply(streamName: String) : KinesisProducerConfig = {
+    def apply(streamName: String): KinesisProducerConfig = {
       KinesisProducerConfig(None, None, None, streamName)
     }
-    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String) : KinesisProducerConfig =  {
+
+    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String): KinesisProducerConfig = {
       KinesisProducerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName)
     }
   }
 
-  case class KinesisConsumerConfig private[Kinesis] (accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String)
+  case class KinesisConsumerConfig private[Kinesis](accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String)
+
   object KinesisConsumerConfig {
-    def apply(streamName: String, applicationName: String, workerId: String) : KinesisConsumerConfig =  {
+    def apply(streamName: String, applicationName: String, workerId: String): KinesisConsumerConfig = {
       KinesisConsumerConfig(None, None, None, streamName, applicationName, workerId)
     }
 
-    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId: String) : KinesisConsumerConfig =  {
+    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId: String): KinesisConsumerConfig = {
       KinesisConsumerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName, applicationName, workerId)
     }
   }
@@ -48,10 +52,12 @@ object Kinesis {
   }
 
   def makeSubscription(config: KinesisConsumerConfig): Subscription = {
-    val provider: AWSCredentialsProvider= {for {
-      a <- config.accessKeyId
-      s <- config.secretKey
-    } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))}.getOrElse(new DefaultAWSCredentialsProviderChain)
+    val provider: AWSCredentialsProvider = {
+      for {
+        a <- config.accessKeyId
+        s <- config.secretKey
+      } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))
+    }.getOrElse(new DefaultAWSCredentialsProviderChain)
     val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId)
     config.region.foreach(kinesisConfig.withRegionName)
 
@@ -69,17 +75,19 @@ object Kinesis {
   }
 
   protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
-    (byteArray : Array[Byte])=> {
-      producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray))
+    (byteArray: Array[Byte]) => {
+      new KinesisConfirmationDelegate(producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray)))
     }
   }
 
-  def getKinesisProducer(accessKeyId: Option[String], secretKey : Option[String], region : Option[String]) : KinesisProducer = {
-    val provider = {for {
-      a <- accessKeyId
-      s <- secretKey
-    } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))}.getOrElse(new DefaultAWSCredentialsProviderChain)
-    val cfg : KinesisProducerConfiguration = new KinesisProducerConfiguration()
+  def getKinesisProducer(accessKeyId: Option[String], secretKey: Option[String], region: Option[String]): KinesisProducer = {
+    val provider = {
+      for {
+        a <- accessKeyId
+        s <- secretKey
+      } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))
+    }.getOrElse(new DefaultAWSCredentialsProviderChain)
+    val cfg: KinesisProducerConfiguration = new KinesisProducerConfiguration()
     cfg.setCredentialsProvider(provider)
     region.foreach(cfg.setRegion)
     new KinesisProducer(cfg)
@@ -104,4 +112,19 @@ object Kinesis {
     }
     (factory, stream)
   }
+
+  protected[kinesis] class KinesisConfirmationDelegate(delegate: ListenableFuture[UserRecordResult]) extends ConfirmationContract {
+
+    override def canConnect() = _ => Try(delegate.get(30, java.util.concurrent.TimeUnit.SECONDS))
+
+    override def messageSent() = _ => (for {
+      result <- Try(delegate.get(30, java.util.concurrent.TimeUnit.SECONDS))
+      status = if (result.isSuccessful) {
+        Success(())
+      } else {
+        Failure(sys.error("The Message Logger connected but failed to send a record."))
+      }
+    } yield status).flatten
+  }
+
 }

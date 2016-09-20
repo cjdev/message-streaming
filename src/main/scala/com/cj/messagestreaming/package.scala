@@ -1,9 +1,15 @@
 package com.cj
 
-import com.amazonaws.services.kinesis.producer.UserRecordResult
-import com.google.common.util.concurrent.ListenableFuture
+import scala.util.Try
 
 package object messagestreaming {
   type Subscription = Stream[Array[Byte]]
-  type Publication = Array[Byte] => ListenableFuture[UserRecordResult]
+  type Publication = Array[Byte] => ConfirmationContract
+
+  trait ConfirmationContract {
+    def canConnect(): Unit => Try[Unit]
+
+    def messageSent(): Unit => Try[Unit]
+  }
+
 }

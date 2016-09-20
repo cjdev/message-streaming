@@ -6,13 +6,12 @@ import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorC
 import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.KinesisProducer
-import com.spotify.google.cloud.pubsub.client.{Message, Publisher}
-import org.jmock.{AbstractExpectations, Mockery}
+import org.hamcrest.Matchers._
 import org.jmock.lib.legacy.ClassImposteriser
+import org.jmock.{AbstractExpectations, Mockery}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
-import org.hamcrest.Matchers._
 
 class KinesisTest extends FlatSpec with Matchers {
 
