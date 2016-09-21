@@ -113,7 +113,7 @@ object Kinesis {
     (factory, stream)
   }
 
-  protected[kinesis] class KinesisConfirmationDelegate(delegate: ListenableFuture[UserRecordResult]) extends ConfirmationContract {
+  class KinesisConfirmationDelegate(delegate: ListenableFuture[UserRecordResult]) extends ConfirmationContract {
 
     override def canConnect = _ => Try(delegate.get(30, java.util.concurrent.TimeUnit.SECONDS))
 
