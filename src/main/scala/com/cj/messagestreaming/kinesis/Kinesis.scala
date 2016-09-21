@@ -10,7 +10,7 @@ import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, 
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
 import com.cj.collections.{IterableBlockingQueue, IteratorStream}
-import com.cj.messagestreaming.{ConfirmationContract, Publication, Subscription}
+import com.cj.messagestreaming.{Confirmable, Publication, Subscription}
 import com.google.common.util.concurrent.ListenableFuture
 import org.slf4j.LoggerFactory
 
@@ -76,7 +76,7 @@ object Kinesis {
 
   protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
     (byteArray: Array[Byte]) => {
-      new KinesisConfirmationDelegate(producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray)))
+      new KinesisConfirmable(producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray)))
     }
   }
 
@@ -113,12 +113,14 @@ object Kinesis {
     (factory, stream)
   }
 
-  class KinesisConfirmationDelegate(delegate: ListenableFuture[UserRecordResult]) extends ConfirmationContract {
+  class KinesisConfirmable(lfurr: ListenableFuture[UserRecordResult]) extends Confirmable {
 
-    override def canConnect = _ => Try(delegate.get(30, java.util.concurrent.TimeUnit.SECONDS))
+    def unsafeUnwrap: Unit => ListenableFuture[UserRecordResult] = _ => lfurr
+
+    override def canConnect = _ => Try(lfurr.get(30, java.util.concurrent.TimeUnit.SECONDS))
 
     override def messageSent = _ => (for {
-      result <- Try(delegate.get(30, java.util.concurrent.TimeUnit.SECONDS))
+      result <- Try(lfurr.get(30, java.util.concurrent.TimeUnit.SECONDS))
       status = if (result.isSuccessful) {
         Success(())
       } else {
