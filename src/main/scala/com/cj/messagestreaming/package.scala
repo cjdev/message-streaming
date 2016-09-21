@@ -7,9 +7,9 @@ package object messagestreaming {
   type Publication = Array[Byte] => ConfirmationContract
 
   trait ConfirmationContract {
-    def canConnect(): Unit => Try[Unit]
+    def canConnect: Unit => Try[Unit]
 
-    def messageSent(): Unit => Try[Unit]
+    def messageSent: Unit => Try[Unit]
   }
 
 }
