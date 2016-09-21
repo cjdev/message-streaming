@@ -10,7 +10,7 @@ import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, 
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
 import com.cj.collections.{IterableBlockingQueue, IteratorStream}
-import com.cj.messagestreaming.{Confirmable, Publication, Subscription}
+import com.cj.messagestreaming.{Closable, Confirmable, Publication, Subscription}
 import com.google.common.util.concurrent.ListenableFuture
 import org.slf4j.LoggerFactory
 
@@ -75,8 +75,26 @@ object Kinesis {
   }
 
   protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
-    (byteArray: Array[Byte]) => {
-      new KinesisConfirmable(producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray)))
+    new Publication {
+      var shutdown = false
+
+      def apply(byteArray: Array[Byte]) : Confirmable = {
+        if (!shutdown) {
+          new KinesisConfirmable(producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray)))
+        } else {
+          val f =  Failure(sys.error("Publication is shutting down."))
+              new Confirmable {
+                def canConnect: Unit => Try[Unit] = _ => f
+                def messageSent: Unit => Try[Unit] = _ => f
+            }
+        }
+      }
+
+      def close = {
+        shutdown = true
+        producer.flushSync()
+        producer.destroy()
+      }
     }
   }
 
