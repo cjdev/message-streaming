@@ -124,7 +124,7 @@ object Kinesis {
       status = if (result.isSuccessful) {
         Success(())
       } else {
-        Failure(sys.error("The Message Logger connected but failed to send a record."))
+        Failure(new Throwable("The Message Logger connected but failed to send a record."))
       }
     } yield status).flatten
   }
