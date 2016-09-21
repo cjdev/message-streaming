@@ -115,9 +115,9 @@ object Kinesis {
 
   protected[kinesis] class KinesisConfirmationDelegate(delegate: ListenableFuture[UserRecordResult]) extends ConfirmationContract {
 
-    override def canConnect() = _ => Try(delegate.get(30, java.util.concurrent.TimeUnit.SECONDS))
+    override def canConnect = _ => Try(delegate.get(30, java.util.concurrent.TimeUnit.SECONDS))
 
-    override def messageSent() = _ => (for {
+    override def messageSent = _ => (for {
       result <- Try(delegate.get(30, java.util.concurrent.TimeUnit.SECONDS))
       status = if (result.isSuccessful) {
         Success(())
