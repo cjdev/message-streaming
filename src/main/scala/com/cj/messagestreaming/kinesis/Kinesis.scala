@@ -86,7 +86,7 @@ object Kinesis {
           val future = producer.addUserRecord(streamName, time, bytes)
           toScalaFuture(future) map (new KinesisPublishResult(_))
         } else {
-          Future { sys.error("Publication is shutting down.") }
+          Future.failed[PublishResult](new Throwable("Publication is shutting down."))
         }
       }
 
