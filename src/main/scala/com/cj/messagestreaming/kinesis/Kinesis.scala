@@ -8,16 +8,17 @@ import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProces
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.model.Record
-import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
+import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
 import com.cj.collections.{IterableBlockingQueue, IteratorStream}
-import com.cj.messagestreaming.{Closable, Confirmable, Publication, Subscription}
-import com.google.common.util.concurrent.ListenableFuture
+import com.cj.messagestreaming._
 import org.slf4j.LoggerFactory
 
 import scala.compat.java8.FunctionConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
+import scala.collection.JavaConversions._
+import com.cj.util._
 
 object Kinesis {
 
@@ -67,8 +68,8 @@ object Kinesis {
     Future {
       Try(worker.run())
     }.onComplete({
-      case Success(s) => logger.error(s"Disaster strikes! Unexpected worker completion. Message: ${s}")
-      case Failure(e) => logger.error(s"Disaster strikes! The worker has terminated abnormally. Error: ${e}")
+      case Success(s) => logger.error(s"Disaster strikes! Unexpected worker completion. Message: $s")
+      case Failure(e) => logger.error(s"Disaster strikes! The worker has terminated abnormally. Error: $e")
     })
 
     stream
@@ -78,19 +79,18 @@ object Kinesis {
     new Publication {
       var shutdown = false
 
-      def apply(byteArray: Array[Byte]) : Confirmable = {
+      def apply(byteArray: Array[Byte]) : Future[PublishResult] = {
         if (!shutdown) {
-          new KinesisConfirmable(producer.addUserRecord(streamName, System.currentTimeMillis.toString, ByteBuffer.wrap(byteArray)))
+          val time = System.currentTimeMillis.toString
+          val bytes = ByteBuffer.wrap(byteArray)
+          val future = producer.addUserRecord(streamName, time, bytes)
+          toScalaFuture(future) map (new KinesisPublishResult(_))
         } else {
-          val f =  Failure(sys.error("Publication is shutting down."))
-              new Confirmable {
-                def canConnect: Unit => Try[Unit] = _ => f
-                def messageSent: Unit => Try[Unit] = _ => f
-            }
+          Future { sys.error("Publication is shutting down.") }
         }
       }
 
-      def close = {
+      def close() = {
         shutdown = true
         producer.flushSync()
         producer.destroy()
@@ -131,20 +131,14 @@ object Kinesis {
     (factory, stream)
   }
 
-  class KinesisConfirmable(lfurr: ListenableFuture[UserRecordResult]) extends Confirmable {
+  class KinesisPublishResult(urr: UserRecordResult) extends PublishResult {
+    override def getAttempts: List[Attempt] = urr.getAttempts.toList
 
-    def unsafeUnwrap: Unit => ListenableFuture[UserRecordResult] = _ => lfurr
+    override def getSequenceNumber: String = urr.getSequenceNumber
 
-    override def canConnect = _ => Try(lfurr.get(30, java.util.concurrent.TimeUnit.SECONDS))
+    override def getShardId: String = urr.getShardId
 
-    override def messageSent = _ => (for {
-      result <- Try(lfurr.get(30, java.util.concurrent.TimeUnit.SECONDS))
-      status = if (result.isSuccessful) {
-        Success(())
-      } else {
-        Failure(new Throwable("The Message Logger connected but failed to send a record."))
-      }
-    } yield status).flatten
+    override def isSuccessful: Boolean = urr.isSuccessful
   }
 
 }

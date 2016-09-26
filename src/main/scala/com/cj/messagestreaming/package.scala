@@ -1,18 +1,25 @@
 package com.cj
 
-import scala.util.Try
+import com.amazonaws.services.kinesis.producer.Attempt
+
+import scala.concurrent.Future
 
 package object messagestreaming {
   type Subscription = Stream[Array[Byte]]
-  trait Publication extends (Array[Byte] => Confirmable) with Closable
+  trait Publication extends (Array[Byte] => Future[PublishResult]) with Closable
 
-  trait Confirmable {
-    def canConnect: Unit => Try[Unit]
-    def messageSent: Unit => Try[Unit]
+  trait PublishResult {
+    def getAttempts: List[Attempt]
+
+    def getSequenceNumber: String
+
+    def getShardId: String
+
+    def isSuccessful: Boolean
   }
 
   trait Closable {
-    def close: Unit
+    def close(): Unit
   }
 
 }
