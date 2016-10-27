@@ -4,6 +4,7 @@ import java.nio.ByteBuffer
 
 import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.internal.StaticCredentialsProvider
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
@@ -15,10 +16,12 @@ import org.slf4j.LoggerFactory
 
 import scala.compat.java8.FunctionConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 import scala.collection.JavaConversions._
 import com.cj.util._
+
+import scala.collection.mutable
 
 object Kinesis {
 
@@ -112,21 +115,18 @@ object Kinesis {
   }
 
   protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
-    val q = new IterableBlockingQueue[Array[Byte]]()
+    var mostRecentRecordProcessed:Record = null
+    var secondMostRecentRecordProcessed:Record = null
+    def onProcess(record: Record): Unit ={
+      secondMostRecentRecordProcessed = mostRecentRecordProcessed
+      mostRecentRecordProcessed = record
+    }
+
+    val q = new IterableBlockingQueue[Array[Byte]]
+
     val stream = new IteratorStream(q.iterator())
     val factory = new IRecordProcessorFactory {
-      override def createProcessor(): IRecordProcessor = new IRecordProcessor {
-        override def shutdown(shutdownInput: ShutdownInput): Unit = { logger.info(s"Shutting down record processor. Reason: ${shutdownInput.getShutdownReason}.")}
-        override def initialize(initializationInput: InitializationInput): Unit = { logger.info(s"Initializing record processor with shardId ${initializationInput.getShardId} and sequence number ${initializationInput.getExtendedSequenceNumber}.")}
-        override def processRecords(processRecordsInput: ProcessRecordsInput): Unit = {
-          val processRecord: Record => Unit =
-            record => {
-              q.add(record.getData.array())
-              processRecordsInput.getCheckpointer.checkpoint(record)
-            }
-          processRecordsInput.getRecords.forEach(processRecord.asJava)
-        }
-      }
+      override def createProcessor(): IRecordProcessor = new CheckpointingRecordProcessor(q)
     }
     (factory, stream)
   }

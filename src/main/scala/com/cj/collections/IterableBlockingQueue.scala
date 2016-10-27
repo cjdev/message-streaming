@@ -2,25 +2,31 @@ package com.cj.collections
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class IterableBlockingQueue[T] extends java.lang.Iterable[T] {
-  private val queue: java.util.Queue[T] = new ConcurrentLinkedQueue[T]
+class IterableBlockingQueue[T] extends java.lang.Iterable[T] with CallbackQueue[T] {
+  private val queue: java.util.Queue[(T, Unit=>Unit)] = new ConcurrentLinkedQueue[(T, Unit=>Unit)]
   private var isDone: Boolean = false
+  private var nextCallback: Unit => Unit = (_: Unit) => {}
 
   def done() {
     isDone = true
   }
 
   def add(`object`: T) {
-    queue.add(`object`)
+    this.add(`object`, _ => {})
+  }
+
+  def add(`object`: T, callback: Unit=>Unit) {
+    queue.add(`object`, callback)
   }
 
   def size(): Int = queue.size
 
   def iterator(): java.util.Iterator[T] = new java.util.Iterator[T]() {
-    def hasNext: Boolean = {
+    override def hasNext: Boolean = {
+      nextCallbackOnce()
       try
         //TODO: Waiting 300ms is a naive solution to blocking.
-        while (queue.isEmpty && !isDone) {Thread.sleep(300) }
+        while (queue.isEmpty && !isDone) { Thread.sleep(300) }
 
       catch {
         case e: InterruptedException => {
@@ -29,12 +35,19 @@ class IterableBlockingQueue[T] extends java.lang.Iterable[T] {
       !(queue.isEmpty && isDone)
     }
 
-    def next: T =
-      return queue.remove
+    def nextCallbackOnce(): Unit = {
+      nextCallback()
+      nextCallback = _ => {}
+    }
 
-    override
+    override def next: T = {
+      nextCallbackOnce()
+      val (thing, func) = queue.remove
+      nextCallback = func
+      thing
+    }
 
-    def remove() {
+    override def remove() {
       queue.remove
     }
   }
