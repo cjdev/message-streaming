@@ -14,21 +14,24 @@ import scala.compat.java8.FunctionConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
-class CheckpointingRecordProcessor(q: CallbackQueue[Array[Byte]], time: =>Long = System.currentTimeMillis) extends IRecordProcessor {
+class CheckpointingRecordProcessor(q: CallbackQueue[Array[Byte]], time: =>Long = System.currentTimeMillis()) extends IRecordProcessor {
     lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
     var checkpointers: mutable.Queue[Future[Unit => Unit]] = mutable.Queue.empty
+    val checkpointInterval = 60000L // one minute
     var nextCheckpointTime: Long = 0
 
     override def shutdown(shutdownInput: ShutdownInput): Unit = {
       logger.info(s"Shutting down record processor. Reason: ${shutdownInput.getShutdownReason}.")
+      q.done()
       if (shutdownInput.getShutdownReason == ShutdownReason.TERMINATE) {
-        checkpointers.foreach(x => Await.ready(x, Duration.Inf))
+        checkpointers.foreach(x => { println("awaiting"); Await.ready(x, Duration.Inf); println("awaited") })
         checkpoint()
       }
     }
 
     override def initialize(initializationInput: InitializationInput): Unit = {
       logger.info(s"Initializing record processor with shardId ${initializationInput.getShardId} and sequence number ${initializationInput.getExtendedSequenceNumber}.")
+      nextCheckpointTime = time + checkpointInterval
     }
 
     def processOneRecord(record: Record, iRecordProccessorCheckpointer: IRecordProcessorCheckpointer): Unit = {
@@ -38,12 +41,12 @@ class CheckpointingRecordProcessor(q: CallbackQueue[Array[Byte]], time: =>Long =
         logger.info(s"Setting checkpoint: ${record.getSequenceNumber}")
         iRecordProccessorCheckpointer.checkpoint(record)
       }
-      val markProcessedRecord: Unit => Unit = (_:Unit) => checkpointerPromise.complete(Try(checkpointer))
+      val markProcessedRecord: Unit => Unit = (_:Unit) => {
+        checkpointerPromise.complete(Try(checkpointer))
+        checkpointIfReady()
+      }
       q.add(record.getData.array(), markProcessedRecord)
 
-      if (time > nextCheckpointTime) {
-        checkpoint()
-      }
     }
 
     override def processRecords(processRecordsInput: ProcessRecordsInput): Unit = {
@@ -51,13 +54,20 @@ class CheckpointingRecordProcessor(q: CallbackQueue[Array[Byte]], time: =>Long =
       processRecordsInput.getRecords.forEach(process.asJava)
     }
 
+    def checkpointIfReady(): Unit = {
+      if (time > nextCheckpointTime) {
+        checkpoint()
+      }
+    }
+
     def checkpoint(): Unit = {
       val (done,remaining) = checkpointers.span(_.isCompleted)
       if (done.nonEmpty) {
-        done.last.foreach(_ ())
+        println("checkpointing")
+        Await.result(done.last, Duration.Zero)() //we're awaiting a future that is already complete
       }
       checkpointers = remaining
-      nextCheckpointTime = System.currentTimeMillis() + 60000L // one minute
+      nextCheckpointTime = time + checkpointInterval
     }
 }
 
