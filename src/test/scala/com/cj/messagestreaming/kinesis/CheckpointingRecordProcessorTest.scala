@@ -1,12 +1,10 @@
 package com.cj.messagestreaming.kinesis
 
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput, ShutdownReason}
 import com.amazonaws.services.kinesis.model.Record
 import com.cj.collections.IterableBlockingQueue
 import org.scalatest.{FlatSpec, Matchers}
-import org.scalamock.scalatest.MockFactory
 
 import scala.collection.JavaConversions._
 import java.nio.ByteBuffer
@@ -16,18 +14,7 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
-class CheckpointingRecordProcessorTest extends FlatSpec with Matchers with MockFactory {
-
-  class mockCheckpointer extends IRecordProcessorCheckpointer {
-    var checkpoints: List[Record] = List()
-    override def checkpoint(): Unit = ???
-    override def checkpoint(record: Record): Unit =  {
-      println(s" checkpointing with record ${record.getSequenceNumber}")
-      checkpoints = record :: checkpoints
-    }
-    override def checkpoint(sequenceNumber: String): Unit = ???
-    override def checkpoint(sequenceNumber: String, subSequenceNumber: Long): Unit = ???
-  }
+class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 
   var sequence: Int = 0
   def makeRecord(s: String): Record = {
@@ -47,7 +34,10 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers with MockF
     val i = q.iterator()
     val recordProcessor: IRecordProcessor = new CheckpointingRecordProcessor(q, time)
     recordProcessor.initialize(new InitializationInput)
-    val checkpointer = new mockCheckpointer
+    val checkpointer = new StubCheckpointer {
+      var checkpoints: List[Record] = List()
+      override def checkpoint(record: Record): Unit = checkpoints = record :: checkpoints
+    }
     var records = List("x1", "x2", "x3").map(makeRecord _)
     val processRecordsInput: ProcessRecordsInput = new ProcessRecordsInput().withCheckpointer(checkpointer).withRecords(records)
   }
@@ -80,7 +70,6 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers with MockF
 
     Await.ready(stop, Duration.Inf)
 
-    System.out.println("Nothing else should print now.")
     checkpointer.checkpoints.head.getSequenceNumber should be(records.last.getSequenceNumber)
 
   }

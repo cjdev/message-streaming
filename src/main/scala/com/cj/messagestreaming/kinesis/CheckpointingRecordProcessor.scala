@@ -24,7 +24,7 @@ class CheckpointingRecordProcessor(q: CallbackQueue[Array[Byte]], time: =>Long =
       logger.info(s"Shutting down record processor. Reason: ${shutdownInput.getShutdownReason}.")
       q.done()
       if (shutdownInput.getShutdownReason == ShutdownReason.TERMINATE) {
-        checkpointers.foreach(x => { println("awaiting"); Await.ready(x, Duration.Inf); println("awaited") })
+        checkpointers.foreach(x => Await.ready(x, Duration.Inf))
         checkpoint()
       }
     }
@@ -63,7 +63,6 @@ class CheckpointingRecordProcessor(q: CallbackQueue[Array[Byte]], time: =>Long =
     def checkpoint(): Unit = {
       val (done,remaining) = checkpointers.span(_.isCompleted)
       if (done.nonEmpty) {
-        println("checkpointing")
         Await.result(done.last, Duration.Zero)() //we're awaiting a future that is already complete
       }
       checkpointers = remaining
