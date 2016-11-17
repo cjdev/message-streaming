@@ -41,8 +41,10 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
     var records = List("x1", "x2", "x3").map(makeRecord _)
     val processRecordsInput: ProcessRecordsInput = new ProcessRecordsInput().withCheckpointer(checkpointer).withRecords(records)
   }
+  
+  behavior of "A CheckpointingRecordProcessor"
 
-  "it" should "not checkpoint before a minute has elapsed" in new Setup {
+  it should "not checkpoint before a minute has elapsed" in new Setup {
     recordProcessor.processRecords(processRecordsInput)
     time = 50000
     consumeOne(i)
@@ -50,7 +52,7 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
     checkpointer.checkpoints.size should be(0)
   }
 
-  "it" should "checkpoint if a minute has elapsed" in new Setup {
+  it should "checkpoint if a minute has elapsed" in new Setup {
     recordProcessor.processRecords(processRecordsInput)
     time = 500000
     consumeOne(i)
@@ -58,7 +60,7 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
     checkpointer.checkpoints.head.getSequenceNumber should be(records.head.getSequenceNumber)
   }
 
-  "it" should "wait for outstanding records to be acknowledged and checkpoint on shutdown" in new Setup {
+  it should "wait for outstanding records to be acknowledged and checkpoint on shutdown" in new Setup {
     recordProcessor.processRecords(processRecordsInput)
     time=500000
     consumeOne(i)
@@ -74,7 +76,7 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 
   }
 
-  "it" should "put records in the provided queue" in new Setup{
+  it should "put records in the provided queue" in new Setup{
     recordProcessor.processRecords(processRecordsInput)
     val things = records.map(_.getData).map(thing => new String(thing.array(), "UTF-8"))
 
@@ -82,5 +84,5 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 
     things.foreach ( r => consumedRecords.next should be (r) )
   }
-
+  
 }

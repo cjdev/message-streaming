@@ -4,8 +4,19 @@ import com.amazonaws.services.kinesis.producer.Attempt
 
 import scala.concurrent.Future
 
-package object messagestreaming {
-  type Subscription = Stream[CheckpointableRecord]
+package object messagestreaming {  
+  case class Subscription(val stream: Stream[CheckpointableRecord]) {
+    def mapWithCheckpointing(f: Array[Byte] => Unit): Unit = {
+      stream.foreach{
+        case CheckpointableRecord(data, callback) => {
+          f(data)
+          callback()
+        }
+      }
+    }
+  }
+  
+  implicit def subscriptionTwoToSteam(s: Subscription): Stream[CheckpointableRecord] = s.stream
   
   case class CheckpointableRecord(data: Array[Byte], checkpointCallback: CheckpointCallback);  
   

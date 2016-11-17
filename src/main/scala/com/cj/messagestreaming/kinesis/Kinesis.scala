@@ -129,7 +129,7 @@ object Kinesis {
     val factory = new IRecordProcessorFactory {
       override def createProcessor(): IRecordProcessor = new CheckpointingRecordProcessor(q)
     }
-    (factory, stream)
+    (factory, Subscription(stream))
   }
 
   class KinesisPublishResult(urr: UserRecordResult) extends PublishResult {

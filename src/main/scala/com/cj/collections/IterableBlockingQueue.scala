@@ -2,7 +2,7 @@ package com.cj.collections
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class IterableBlockingQueue[T] extends java.lang.Iterable[T] with Queue[T] {
+class IterableBlockingQueue[T] extends java.lang.Iterable[T] with Queue[T] with Streamable[T] {
 //  private val queue: java.util.Queue[(T, Unit=>Unit)] = new ConcurrentLinkedQueue[(T, Unit=>Unit)]
   private val queue: java.util.Queue[T] = new ConcurrentLinkedQueue[T]
   private var isDone: Boolean = false
@@ -53,5 +53,16 @@ class IterableBlockingQueue[T] extends java.lang.Iterable[T] with Queue[T] {
     override def remove() {
       queue.remove
     }
+  }
+  
+  override def stream():Stream[T] = {
+    //TODO: THIS IS THE RIGHT THING TO DO.  I DO KNOW WHY ALEX DOESN'T WANT TO DO IT NOW....
+//    StreamSupport.stream(
+//          Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED),
+//          false);
+    
+    
+    new IteratorStream(iterator())
+    
   }
 }
