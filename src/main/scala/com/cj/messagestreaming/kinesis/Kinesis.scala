@@ -125,11 +125,11 @@ object Kinesis {
 
     val q = new IterableBlockingQueue[CheckpointableRecord]
 
-    val stream = new IteratorStream(q.iterator())
     val factory = new IRecordProcessorFactory {
       override def createProcessor(): IRecordProcessor = new CheckpointingRecordProcessor(q)
     }
-    (factory, Subscription(stream))
+    
+    (factory, Subscription(q))
   }
 
   class KinesisPublishResult(urr: UserRecordResult) extends PublishResult {

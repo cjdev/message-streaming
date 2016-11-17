@@ -1,11 +1,12 @@
 package com.cj
 
 import com.amazonaws.services.kinesis.producer.Attempt
+import com.cj.collections.Streamable
 
 import scala.concurrent.Future
 
 package object messagestreaming {  
-  case class Subscription(val stream: Stream[CheckpointableRecord]) {
+  case class Subscription(val stream: Stream[CheckpointableRecord]) extends Streamable[CheckpointableRecord] {
     def mapWithCheckpointing(f: Array[Byte] => Unit): Unit = {
       stream.foreach{
         case CheckpointableRecord(data, callback) => {
@@ -15,8 +16,6 @@ package object messagestreaming {
       }
     }
   }
-  
-  implicit def subscriptionTwoToSteam(s: Subscription): Stream[CheckpointableRecord] = s.stream
   
   case class CheckpointableRecord(data: Array[Byte], checkpointCallback: CheckpointCallback);  
   
