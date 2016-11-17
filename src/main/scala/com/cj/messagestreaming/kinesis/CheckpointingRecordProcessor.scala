@@ -45,7 +45,7 @@ class CheckpointingRecordProcessor(q: CallbackQueue[(Array[Byte], com.cj.message
         checkpointerPromise.complete(Try(checkpointer))
         checkpointIfReady()
       }
-      q.add((record.getData.array(), () => markProcessedRecord() ), markProcessedRecord)
+      q.add((record.getData.array(), () => markProcessedRecord() ))
 
     }
 
