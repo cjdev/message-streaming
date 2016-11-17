@@ -122,7 +122,7 @@ object Kinesis {
       mostRecentRecordProcessed = record
     }
 
-    val q = new IterableBlockingQueue[Array[Byte]]
+    val q = new IterableBlockingQueue[(Array[Byte], CheckpointCallback)]
 
     val stream = new IteratorStream(q.iterator())
     val factory = new IRecordProcessorFactory {

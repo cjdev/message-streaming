@@ -30,7 +30,7 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 
   class Setup {
     var time = 0L
-    val q = new IterableBlockingQueue[Array[Byte]]
+    val q = new IterableBlockingQueue[(Array[Byte], com.cj.messagestreaming.CheckpointCallback)]
     val i = q.iterator()
     val recordProcessor: IRecordProcessor = new CheckpointingRecordProcessor(q, time)
     recordProcessor.initialize(new InitializationInput)
@@ -78,7 +78,7 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
     recordProcessor.processRecords(processRecordsInput)
     val things = records.map(_.getData).map(thing => new String(thing.array(), "UTF-8"))
 
-    val consumedRecords = q.iterator().map(new String(_, "UTF-8"))
+    val consumedRecords = q.iterator().map( t=> new String(t._1, "UTF-8"))
 
     things.foreach ( r => consumedRecords.next should be (r) )
   }
