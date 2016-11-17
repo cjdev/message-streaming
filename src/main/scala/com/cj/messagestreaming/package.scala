@@ -5,7 +5,9 @@ import com.amazonaws.services.kinesis.producer.Attempt
 import scala.concurrent.Future
 
 package object messagestreaming {
-  type Subscription = Stream[(Array[Byte], CheckpointCallback)]
+  type Subscription = Stream[CheckpointableRecord]
+  
+  case class CheckpointableRecord(data: Array[Byte], checkpointCallback: CheckpointCallback);  
   
   type CheckpointCallback = () => Unit
   

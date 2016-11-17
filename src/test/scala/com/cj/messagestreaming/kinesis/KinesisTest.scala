@@ -43,7 +43,7 @@ class KinesisTest extends FlatSpec with Matchers {
 
     //then
     dataToPublish.zip(stream).foreach[Unit]({
-      case (x,y) => x should be(y._1)
+      case (x,y) => x should be(y.data)
     })
   }
 

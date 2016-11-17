@@ -2,7 +2,7 @@ package com.cj.collections
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class IterableBlockingQueue[T] extends java.lang.Iterable[T] with CallbackQueue[T] {
+class IterableBlockingQueue[T] extends java.lang.Iterable[T] with Queue[T] {
 //  private val queue: java.util.Queue[(T, Unit=>Unit)] = new ConcurrentLinkedQueue[(T, Unit=>Unit)]
   private val queue: java.util.Queue[T] = new ConcurrentLinkedQueue[T]
   private var isDone: Boolean = false

@@ -1,6 +1,7 @@
 package com.cj.messagestreaming.kinesis
 
 import java.nio.ByteBuffer
+import com.cj.messagestreaming._
 
 import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.internal.StaticCredentialsProvider
@@ -122,7 +123,7 @@ object Kinesis {
       mostRecentRecordProcessed = record
     }
 
-    val q = new IterableBlockingQueue[(Array[Byte], CheckpointCallback)]
+    val q = new IterableBlockingQueue[CheckpointableRecord]
 
     val stream = new IteratorStream(q.iterator())
     val factory = new IRecordProcessorFactory {

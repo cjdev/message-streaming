@@ -13,6 +13,7 @@ import java.util
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
+import com.cj.messagestreaming.CheckpointableRecord
 
 class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 
@@ -23,14 +24,13 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
       .withSequenceNumber({sequence += 1; sequence.toString})
   }
 
-  def consumeOne[T](i: util.Iterator[T]): Boolean = {
-    i.next // pulls out one thing
-    i.hasNext // marks the thing as consumed
+  def consumeOne(i: util.Iterator[CheckpointableRecord]): Unit = {
+    i.next.checkpointCallback() // pulls out one thing and calls the callback (marks it as consumed)
   }
 
   class Setup {
     var time = 0L
-    val q = new IterableBlockingQueue[(Array[Byte], com.cj.messagestreaming.CheckpointCallback)]
+    val q = new IterableBlockingQueue[CheckpointableRecord]
     val i = q.iterator()
     val recordProcessor: IRecordProcessor = new CheckpointingRecordProcessor(q, time)
     recordProcessor.initialize(new InitializationInput)
@@ -42,43 +42,43 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
     val processRecordsInput: ProcessRecordsInput = new ProcessRecordsInput().withCheckpointer(checkpointer).withRecords(records)
   }
 
-//  "it" should "not checkpoint before a minute has elapsed" in new Setup {
-//    recordProcessor.processRecords(processRecordsInput)
-//    time = 50000
-//    consumeOne(i)
-//
-//    checkpointer.checkpoints.size should be(0)
-//  }
+  "it" should "not checkpoint before a minute has elapsed" in new Setup {
+    recordProcessor.processRecords(processRecordsInput)
+    time = 50000
+    consumeOne(i)
 
-//  "it" should "checkpoint if a minute has elapsed" in new Setup {
-//    recordProcessor.processRecords(processRecordsInput)
-//    time = 500000
-//    consumeOne(i)
-//
-//    checkpointer.checkpoints.head.getSequenceNumber should be(records.head.getSequenceNumber)
-//  }
+    checkpointer.checkpoints.size should be(0)
+  }
 
-//  "it" should "wait for outstanding records to be acknowledged and checkpoint on shutdown" in new Setup {
-//    recordProcessor.processRecords(processRecordsInput)
-//    time=500000
-//    consumeOne(i)
-//    val done = new ShutdownInput().withShutdownReason(ShutdownReason.TERMINATE)
-//
-//    val stop = Future { recordProcessor.shutdown(done) }
-//
-//    i.foreach(_=>()) // consume remaining records
-//
-//    Await.ready(stop, Duration.Inf)
-//
-//    checkpointer.checkpoints.head.getSequenceNumber should be(records.last.getSequenceNumber)
-//
-//  }
+  "it" should "checkpoint if a minute has elapsed" in new Setup {
+    recordProcessor.processRecords(processRecordsInput)
+    time = 500000
+    consumeOne(i)
+
+    checkpointer.checkpoints.head.getSequenceNumber should be(records.head.getSequenceNumber)
+  }
+
+  "it" should "wait for outstanding records to be acknowledged and checkpoint on shutdown" in new Setup {
+    recordProcessor.processRecords(processRecordsInput)
+    time=500000
+    consumeOne(i)
+    val done = new ShutdownInput().withShutdownReason(ShutdownReason.TERMINATE)
+
+    val stop = Future { recordProcessor.shutdown(done) }
+
+    i.foreach(_.checkpointCallback()) // consume remaining records
+
+    Await.ready(stop, Duration.Inf)
+
+    checkpointer.checkpoints.head.getSequenceNumber should be(records.last.getSequenceNumber)
+
+  }
 
   "it" should "put records in the provided queue" in new Setup{
     recordProcessor.processRecords(processRecordsInput)
     val things = records.map(_.getData).map(thing => new String(thing.array(), "UTF-8"))
 
-    val consumedRecords = q.iterator().map( t=> new String(t._1, "UTF-8"))
+    val consumedRecords = q.iterator().map( t=> new String(t.data, "UTF-8"))
 
     things.foreach ( r => consumedRecords.next should be (r) )
   }

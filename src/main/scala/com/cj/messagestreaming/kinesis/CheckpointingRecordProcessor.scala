@@ -4,9 +4,9 @@ import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorC
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput, ShutdownReason}
 import com.amazonaws.services.kinesis.model.Record
-import com.cj.collections.{CallbackQueue, IterableBlockingQueue}
+import com.cj.collections.{Queue, IterableBlockingQueue}
 import org.slf4j.LoggerFactory
-
+import com.cj.messagestreaming._
 import scala.collection.mutable
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
@@ -14,7 +14,7 @@ import scala.compat.java8.FunctionConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
-class CheckpointingRecordProcessor(q: CallbackQueue[(Array[Byte], com.cj.messagestreaming.CheckpointCallback)], time: =>Long = System.currentTimeMillis()) extends IRecordProcessor {
+class CheckpointingRecordProcessor(q: Queue[CheckpointableRecord], time: =>Long = System.currentTimeMillis()) extends IRecordProcessor {
     lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
     var checkpointers: mutable.Queue[Future[Unit => Unit]] = mutable.Queue.empty
     val checkpointInterval = 60000L // one minute
@@ -45,7 +45,7 @@ class CheckpointingRecordProcessor(q: CallbackQueue[(Array[Byte], com.cj.message
         checkpointerPromise.complete(Try(checkpointer))
         checkpointIfReady()
       }
-      q.add((record.getData.array(), () => markProcessedRecord() ))
+      q.add(CheckpointableRecord(record.getData.array(), () => markProcessedRecord() ))
 
     }
 
