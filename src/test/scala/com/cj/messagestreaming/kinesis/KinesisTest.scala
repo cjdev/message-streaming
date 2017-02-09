@@ -37,20 +37,13 @@ class KinesisTest extends FlatSpec with Matchers {
   "Kinesis" should "put things in the stream when new records are processed" in {
     //given
     val (factory, stream) = Kinesis.subscribe()
-    class FakeCheckPointer extends IRecordProcessorCheckpointer {
-      override def checkpoint(): Unit = println("CHECKPOINTING!")
-      override def checkpoint(record: Record): Unit = println(s"CHECKPOINTING! Record is $record")
-      override def checkpoint(sequenceNumber: String): Unit = println(s"CHECKPOINTING! Sequence Number is $sequenceNumber")
-      override def checkpoint(sequenceNumber: String, subSequenceNumber: Long): Unit = println(s"CHECKPOINTING! Sequence and subSequence numbers are $sequenceNumber $subSequenceNumber")
-    }
-    val checkpointer = new FakeCheckPointer
-
+    val checkpointer = new StubCheckpointer()
     //when
     factory.createProcessor().processRecords(new ProcessRecordsInput().withRecords(recordsToSend.asJava).withCheckpointer(checkpointer))
 
     //then
     dataToPublish.zip(stream).foreach[Unit]({
-      case (x,y) => x should be(y)
+      case (x,y) => x should be(y.data)
     })
   }
 
