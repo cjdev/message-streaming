@@ -112,7 +112,12 @@ object Kinesis {
         s <- config.secretKey
       } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))
     }.getOrElse(new DefaultAWSCredentialsProviderChain)
-    val kinesisConfig = new KinesisClientLibConfiguration(config.applicationName, config.streamName, provider, config.workerId)
+    val kinesisConfig = new KinesisClientLibConfiguration(
+      config.applicationName,
+      config.streamName,
+      provider,
+      config.workerId
+    ).withInitialPositionInStream(config.initialPositionInStream)
     config.region.foreach(kinesisConfig.withRegionName)
 
     val (recordProcessorFactory, stream) = subscribe()
