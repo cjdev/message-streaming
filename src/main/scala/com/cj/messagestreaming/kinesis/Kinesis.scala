@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.internal.StaticCredentialsProvider
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{InitialPositionInStream, KinesisClientLibConfiguration, Worker}
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
@@ -36,15 +36,68 @@ object Kinesis {
     }
   }
 
-  case class KinesisConsumerConfig private[Kinesis](accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String, applicationName: String, workerId: String)
+  case class KinesisConsumerConfig private[Kinesis]( accessKeyId: Option[String],
+                                                     secretKey: Option[String],
+                                                     region: Option[String],
+                                                     streamName: String,
+                                                     applicationName: String,
+                                                     workerId: String,
+                                                     initialPositionInStream: InitialPositionInStream)
 
   object KinesisConsumerConfig {
     def apply(streamName: String, applicationName: String, workerId: String): KinesisConsumerConfig = {
-      KinesisConsumerConfig(None, None, None, streamName, applicationName, workerId)
+      KinesisConsumerConfig(
+        accessKeyId = None,
+        secretKey = None,
+        region = None,
+        streamName = streamName,
+        applicationName = applicationName,
+        workerId = workerId,
+        initialPositionInStream = InitialPositionInStream.LATEST
+      )
+    }
+
+    def apply(streamName: String, applicationName: String, workerId: String, initialPositionInStream: InitialPositionInStream): KinesisConsumerConfig = {
+      KinesisConsumerConfig(
+        accessKeyId = None,
+        secretKey = None,
+        region = None,
+        streamName = streamName,
+        applicationName = applicationName,
+        workerId = workerId,
+        initialPositionInStream = initialPositionInStream
+      )
     }
 
     def apply(accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId: String): KinesisConsumerConfig = {
-      KinesisConsumerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName, applicationName, workerId)
+      KinesisConsumerConfig(
+        accessKeyId = Some(accessKeyId),
+        secretKey = Some(secretKey),
+        region = Some(region),
+        streamName = streamName,
+        applicationName = applicationName,
+        workerId = workerId,
+        initialPositionInStream = InitialPositionInStream.LATEST
+      )
+    }
+
+    def apply( accessKeyId: String,
+               secretKey: String,
+               region: String,
+               streamName: String,
+               applicationName: String,
+               workerId: String,
+               initialPositionInStream: InitialPositionInStream
+             ): KinesisConsumerConfig = {
+      KinesisConsumerConfig(
+        accessKeyId = Some(accessKeyId),
+        secretKey = Some(secretKey),
+        region = Some(region),
+        streamName = streamName,
+        applicationName = applicationName,
+        workerId = workerId,
+        initialPositionInStream = initialPositionInStream
+      )
     }
   }
 
