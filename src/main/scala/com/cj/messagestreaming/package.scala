@@ -5,9 +5,18 @@ import com.cj.collections.Streamable
 
 import scala.concurrent.Future
 
-package object messagestreaming {  
-  case class Subscription(val stream: Stream[CheckpointableRecord]) extends Streamable[CheckpointableRecord] {
-    def mapWithCheckpointing(f: Array[Byte] => Unit): Unit = {
+package object messagestreaming {
+
+  trait Subscription  extends Streamable[CheckpointableRecord] {
+    def mapWithCheckpointing(f: Array[Byte] => Unit): Unit
+  }
+
+  object Subscription {
+    def apply(stream: Stream[CheckpointableRecord]) = StreamSubscription(stream)
+  }
+
+  case class StreamSubscription(val stream: Stream[CheckpointableRecord]) extends Subscription {
+    override def mapWithCheckpointing(f: Array[Byte] => Unit): Unit = {
       stream.foreach{
         case CheckpointableRecord(data, callback) => {
           f(data)
