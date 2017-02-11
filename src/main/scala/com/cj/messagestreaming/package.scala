@@ -17,7 +17,7 @@ package object messagestreaming {
     }
   }
   
-  case class CheckpointableRecord(data: Array[Byte], checkpointCallback: CheckpointCallback);  
+  case class CheckpointableRecord(data: Array[Byte], checkpointCallback: CheckpointCallback)
   
   type CheckpointCallback = () => Unit
   
