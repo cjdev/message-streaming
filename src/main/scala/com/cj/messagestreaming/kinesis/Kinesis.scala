@@ -1,8 +1,8 @@
 package com.cj.messagestreaming.kinesis
 
 import java.nio.ByteBuffer
-import com.cj.messagestreaming._
 
+import com.cj.messagestreaming._
 import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.internal.StaticCredentialsProvider
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
@@ -12,6 +12,7 @@ import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, 
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
 import com.cj.collections.{IterableBlockingQueue, IteratorStream}
+import com.cj.messagestreaming.Java.{PublicationJ, SubscriptionJ}
 import com.cj.messagestreaming._
 import org.slf4j.LoggerFactory
 
@@ -105,11 +106,11 @@ object Kinesis {
     }
   }
 
-  def makePublication(config: KinesisProducerConfig): Publication = {
-    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, config.region))
+  def makePublication(config: KinesisProducerConfig): PublicationJ = {
+    PublicationJ(produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, config.region)))
   }
 
-  def makeSubscription(config: KinesisConsumerConfig): Subscription = {
+  def makeSubscription(config: KinesisConsumerConfig): SubscriptionJ = {
     val provider: AWSCredentialsProvider = {
       for {
         a <- config.accessKeyId
@@ -134,7 +135,7 @@ object Kinesis {
       case Failure(e) => logger.error(s"Disaster strikes! The worker has terminated abnormally. Error: $e")
     })
 
-    stream
+    SubscriptionJ(stream)
   }
 
   protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
