@@ -16,7 +16,7 @@ object Java {
 
   object KinesisProducerConfigJ {
     def apply(accessKeyId: String, secretKey: String, region: String, streamName: String): KinesisProducerConfig = {
-      KinesisProducerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName)
+      KinesisProducerConfig(accessKeyId, secretKey, region, streamName)
     }
   }
 }
