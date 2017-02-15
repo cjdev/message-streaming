@@ -5,6 +5,7 @@ import scala.concurrent.Future
 
 object Java {
   case class PublicationJ(publication: Publication) extends Publication {
+    override def apply(bytes: Array[Byte]): Future[PublishResult] = publication(bytes)
     override def close(): Unit = publication.close()
     def publish(bytes: Array[Byte]): Future[PublishResult] = publication(bytes)
   }
