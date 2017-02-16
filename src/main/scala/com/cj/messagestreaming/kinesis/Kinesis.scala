@@ -106,11 +106,11 @@ object Kinesis {
     }
   }
 
-  def makePublication(config: KinesisProducerConfig): PublicationJ = {
-    PublicationJ(produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, config.region)))
+  def makePublication(config: KinesisProducerConfig): Publication = {
+    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, config.region))
   }
 
-  def makeSubscription(config: KinesisConsumerConfig): SubscriptionJ = {
+  def makeSubscription(config: KinesisConsumerConfig): Subscription = {
     val provider: AWSCredentialsProvider = {
       for {
         a <- config.accessKeyId
@@ -135,7 +135,7 @@ object Kinesis {
       case Failure(e) => logger.error(s"Disaster strikes! The worker has terminated abnormally. Error: $e")
     })
 
-    SubscriptionJ(stream)
+    stream
   }
 
   protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
