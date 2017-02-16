@@ -9,7 +9,6 @@ object Java {
   case class PublicationJ(configJ: KinesisProducerConfigJ) {
     val publication : Publication = Kinesis.makePublication(configJ.config)
     def publish(bytes: Array[Byte]): Future[PublishResult] = publication(bytes)
-    def publish(bytes: Array[Byte]): Future[PublishResult] = publication(bytes)
   }
 
   case class SubscriptionJ(configJ: KinesisConsumerConfigJ)  {
