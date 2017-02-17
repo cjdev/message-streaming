@@ -2,8 +2,7 @@ package com.cj
 
 import com.amazonaws.services.kinesis.producer.Attempt
 import com.cj.collections.Streamable
-
-import scala.concurrent.Future
+import com.google.common.util.concurrent.ListenableFuture
 
 package object messagestreaming {
 
@@ -30,7 +29,7 @@ package object messagestreaming {
   
   type CheckpointCallback = () => Unit
   
-  trait Publication extends (Array[Byte] => Future[PublishResult]) with Closable
+  trait Publication extends (Array[Byte] => ListenableFuture[PublishResult]) with Closable
 
   trait PublishResult {
     def getAttempts: List[Attempt]

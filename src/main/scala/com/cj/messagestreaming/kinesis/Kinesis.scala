@@ -2,28 +2,21 @@ package com.cj.messagestreaming.kinesis
 
 import java.nio.ByteBuffer
 
-import com.cj.messagestreaming._
 import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.internal.StaticCredentialsProvider
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{InitialPositionInStream, KinesisClientLibConfiguration, Worker}
-import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
-import com.cj.collections.{IterableBlockingQueue, IteratorStream}
-import com.cj.messagestreaming.Java.{PublicationJ, SubscriptionJ}
+import com.cj.collections.IterableBlockingQueue
 import com.cj.messagestreaming._
+import com.google.common.util.concurrent.{Futures, ListenableFuture}
 import org.slf4j.LoggerFactory
 
-import scala.compat.java8.FunctionConverters._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success, Try}
 import scala.collection.JavaConversions._
-import com.cj.util._
-
-import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 object Kinesis {
 
@@ -138,18 +131,28 @@ object Kinesis {
     stream
   }
 
+  implicit def guavify[T,U](f: Function[T,U]) : com.google.common.base.Function[T, U] = {
+    new com.google.common.base.Function[T, U]() {
+      override def apply(t: T): U = f(t)
+    }
+  }
+
   protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
     new Publication {
       var shutdown = false
 
-      def apply(byteArray: Array[Byte]) : Future[PublishResult] = {
+      def apply(byteArray: Array[Byte]) : ListenableFuture[PublishResult] = {
         if (!shutdown) {
           val time = System.currentTimeMillis.toString
           val bytes = ByteBuffer.wrap(byteArray)
-          val future = producer.addUserRecord(streamName, time, bytes)
-          toScalaFuture(future) map (new KinesisPublishResult(_))
+          val kinesisFuture = producer.addUserRecord(streamName, time, bytes)
+
+          val getPublishResultFromUserRecordResult: UserRecordResult => KinesisPublishResult  = new KinesisPublishResult(_)
+
+          Futures.transform(kinesisFuture, getPublishResultFromUserRecordResult)
+
         } else {
-          Future.failed[PublishResult](new Throwable("Publication is shutting down."))
+          Futures.immediateFailedFuture(new Throwable("Publication is shutting down."))
         }
       }
 
