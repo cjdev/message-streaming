@@ -17,7 +17,7 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
     //given
     val numbers: Stream[Int] = Stream(1,2,3,4,5,6,7,8,9)
     val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
-    val adder: qq.Adder = qq.newAdder()
+    val adder: Queue[Int] = qq.newAdder()
 
     //when
     numbers.foreach(adder.add)
@@ -30,9 +30,9 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
   it should "prioritize queues by element order" in {
     //given
     val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
-    val adder1: qq.Adder = qq.newAdder()
-    val adder2: qq.Adder = qq.newAdder()
-    val adder3: qq.Adder = qq.newAdder()
+    val adder1: Queue[Int] = qq.newAdder()
+    val adder2: Queue[Int] = qq.newAdder()
+    val adder3: Queue[Int] = qq.newAdder()
 
     //when
     Seq(1,5,9).foreach(adder1.add)
@@ -51,7 +51,7 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
     //given
     val capacity = 3
     val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering,capacity)
-    val adder: qq.Adder = qq.newAdder()
+    val adder: Queue[Int] = qq.newAdder()
     var recordsAdded: Int = 0
 
     //when
@@ -61,17 +61,6 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
     }
     Thread.sleep(500)
     val i =qq.iterator()
-
-
-    // thread1    add1 add2 add3         add4        add5
-
-    // thread2                    read1       read2
-
-    // add4 does not occur before read1 < under test
-    // add5 does not occur before read2 < under test
-
-    // read1 does not occur before add3 < a prereq we satisfy with sleep
-    // read2 does not occur before add4 < a prereq we satisfy with sleep
 
 
     //then
@@ -89,7 +78,7 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
   "hasNext" should "block on pending adds" in {
     //given
     val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
-    val adder: qq.Adder = qq.newAdder()
+    val adder: Queue[Int] = qq.newAdder()
     var indicator = false
 
     //when
@@ -108,8 +97,8 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
   "hasNext" should "not block if the first element of each queue is available" in {
     //given
     val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
-    val adder1: qq.Adder = qq.newAdder()
-    val adder2: qq.Adder = qq.newAdder()
+    val adder1: Queue[Int] = qq.newAdder()
+    val adder2: Queue[Int] = qq.newAdder()
 
     //when
     adder1.add(3)
@@ -125,7 +114,7 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
   "next" should "throw a FooException if the first element is not available" in {
     //given
     val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
-    val adder1: qq.Adder = qq.newAdder()
+    val adder1: Queue[Int] = qq.newAdder()
 
     //when
     val i = qq.iterator()
