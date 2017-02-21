@@ -6,9 +6,10 @@ import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultA
 import com.amazonaws.internal.StaticCredentialsProvider
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{InitialPositionInStream, KinesisClientLibConfiguration, Worker}
+import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
-import com.cj.collections.IterableBlockingQueue
+import com.cj.collections.{IterableBlockingMultiQueue, IterableBlockingQueue}
 import com.cj.messagestreaming._
 import com.google.common.util.concurrent.{Futures, ListenableFuture}
 import org.slf4j.LoggerFactory
@@ -177,6 +178,21 @@ object Kinesis {
     new KinesisProducer(cfg)
   }
 
+  val recordPriority = new Ordering[UserRecord] {
+    override def compare(x: UserRecord, y: UserRecord): Int = {
+      val xSeqNum: String = x.getSequenceNumber
+      val ySeqNum: String = y.getSequenceNumber
+      val xPartKey: String = x.getPartitionKey
+      val yPartKey: String = x.getPartitionKey
+
+      if (xSeqNum == ySeqNum) {
+        xPartKey.compare(yPartKey)
+      } else {
+        (-1) * xSeqNum.compare(ySeqNum)
+      }
+    }
+  }
+
   protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
     var mostRecentRecordProcessed:Record = null
     var secondMostRecentRecordProcessed:Record = null
@@ -184,6 +200,22 @@ object Kinesis {
       secondMostRecentRecordProcessed = mostRecentRecordProcessed
       mostRecentRecordProcessed = record
     }
+
+
+
+    val mq: IterableBlockingMultiQueue[CheckpointableRecord] =
+      IterableBlockingMultiQueue(priority = recordPriority, bound = 100)
+
+    val mfactory = new IRecordProcessorFactory {
+      override def createProcessor() = {
+        new CheckpointingRecordProcessor(mq.newAdder())
+      }
+    }
+
+
+
+
+
 
     val q = new IterableBlockingQueue[CheckpointableRecord]
 

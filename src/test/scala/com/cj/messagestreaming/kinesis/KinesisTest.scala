@@ -3,7 +3,7 @@ package com.cj.messagestreaming.kinesis
 import java.nio.ByteBuffer
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
-import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput
+import com.amazonaws.services.kinesis.clientlibrary.types.{ProcessRecordsInput, UserRecord}
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.KinesisProducer
 import org.hamcrest.Matchers._
@@ -70,4 +70,33 @@ class KinesisTest extends FlatSpec with Matchers {
     //then
     context.assertIsSatisfied()
   }
+
+  "recordPriority" should "prioritize records with lower sequence number" in {
+    //given
+    val x = new UserRecord(new Record())
+    x.setSequenceNumber("123")
+    x.setPartitionKey("456")
+
+    val y = new UserRecord(new Record())
+    y.setSequenceNumber("100")
+    y.setPartitionKey("556")
+
+    //when, then
+    Kinesis.recordPriority.max(x,y) should be (y)
+  }
+
+  "recordPriority" should "use partition key to break sequence number ties" in {
+    //given
+    val x = new UserRecord(new Record())
+    x.setSequenceNumber("123")
+    x.setPartitionKey("456")
+
+    val y = new UserRecord(new Record())
+    y.setSequenceNumber("123")
+    y.setPartitionKey("556")
+
+    //when, then
+    Kinesis.recordPriority.max(x,y) should be (x)
+  }
+
 }
