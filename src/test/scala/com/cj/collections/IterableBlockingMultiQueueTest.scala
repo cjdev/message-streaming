@@ -132,21 +132,4 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
       case Success(_) => {}
     }
   }
-
-  "hasNext" should "block if there have never been at least `initialAdders` adders" in {
-    // given
-    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue(priority = intPriority, initialAdders = 2)
-    val adder1: Queue[Int] = qq.newAdder()
-    var threadDone = false
-
-    //when
-    val f = Future {
-      qq.iterator().hasNext
-      threadDone = true
-    }
-    Thread.sleep(500)
-
-    //then
-    threadDone should be(false)
-  }
 }

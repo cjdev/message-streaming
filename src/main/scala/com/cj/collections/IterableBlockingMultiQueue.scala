@@ -5,12 +5,9 @@ import scala.collection.JavaConverters._
 
 class IterableBlockingMultiQueue[T] private(
                                              priority: Ordering[T], // the greater is first
-                                             initialAdders: Int,
                                              bound: Int
                                            )
   extends java.lang.Iterable[T] with Streamable[T] {
-
-  private var ready = false
 
   private val queueOrder: Ordering[IterableBlockingQueue[T]] = new Ordering[IterableBlockingQueue[T]] {
     override def compare(x: IterableBlockingQueue[T], y: IterableBlockingQueue[T]): Int = {
@@ -39,7 +36,6 @@ class IterableBlockingMultiQueue[T] private(
     }
 
     override def hasNext: Boolean = {
-      while (!ready) { Thread.sleep(300) }
       val addersToInsert = pendingAdders.dequeueAll(_ => true).filter(_.hasMore())
       addersToInsert.foreach(priorityQueue.enqueue(_))
       priorityQueue.nonEmpty && priorityQueue.head.nonEmpty
@@ -49,7 +45,6 @@ class IterableBlockingMultiQueue[T] private(
   def newAdder(): Queue[T] = {
     val q = new IterableBlockingQueue[T](bound)
     pendingAdders.enqueue(q)
-    if (pendingAdders.size >= initialAdders) { ready = true }
     q
   }
 
@@ -59,8 +54,7 @@ class IterableBlockingMultiQueue[T] private(
 object IterableBlockingMultiQueue {
 
   def apply[T](priority: Ordering[T],
-               initialAdders: Int = 1,
                bound: Int = 20
               ): IterableBlockingMultiQueue[T] =
-    new IterableBlockingMultiQueue[T](priority, initialAdders, bound)
+    new IterableBlockingMultiQueue[T](priority, bound)
 }
