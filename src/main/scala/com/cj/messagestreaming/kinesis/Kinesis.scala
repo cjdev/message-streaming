@@ -178,17 +178,15 @@ object Kinesis {
     new KinesisProducer(cfg)
   }
 
-  val recordPriority = new Ordering[UserRecord] {
-    override def compare(x: UserRecord, y: UserRecord): Int = {
-      val xSeqNum: String = x.getSequenceNumber
-      val ySeqNum: String = y.getSequenceNumber
-      val xPartKey: String = x.getPartitionKey
-      val yPartKey: String = x.getPartitionKey
+  case class OrderedRecord(record: CheckpointableRecord, orderKey: (String,String))
 
-      if (xSeqNum == ySeqNum) {
-        xPartKey.compare(yPartKey)
+  val recordPriority = new Ordering[OrderedRecord] {
+
+    override def compare(x: OrderedRecord, y: OrderedRecord): Int = {
+      if (x.orderKey._1 == x.orderKey._2) {
+        x.orderKey._2.compare(y.orderKey._2)
       } else {
-        (-1) * xSeqNum.compare(ySeqNum)
+        (-1) * x.orderKey._1.compare(y.orderKey._1)
       }
     }
   }
@@ -201,29 +199,18 @@ object Kinesis {
       mostRecentRecordProcessed = record
     }
 
-
-
-    val mq: IterableBlockingMultiQueue[CheckpointableRecord] =
+    val q: IterableBlockingMultiQueue[OrderedRecord] =
       IterableBlockingMultiQueue(priority = recordPriority, bound = 100)
 
-    val mfactory = new IRecordProcessorFactory {
-      override def createProcessor() = {
-        new CheckpointingRecordProcessor(mq.newAdder())
+    val factory = new IRecordProcessorFactory {
+      override def createProcessor(): IRecordProcessor = {
+        new CheckpointingRecordProcessor(q.newAdder())
       }
     }
 
+    val s: Stream[CheckpointableRecord] = q.stream().map(_.record)
 
-
-
-
-
-    val q = new IterableBlockingQueue[CheckpointableRecord]
-
-    val factory = new IRecordProcessorFactory {
-      override def createProcessor(): IRecordProcessor = new CheckpointingRecordProcessor(q)
-    }
-    
-    (factory, Subscription(q))
+    (factory, Subscription(s))
   }
 
   class KinesisPublishResult(urr: UserRecordResult) extends PublishResult {

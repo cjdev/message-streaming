@@ -52,7 +52,6 @@ class IterableBlockingMultiQueue[T] private(
 }
 
 object IterableBlockingMultiQueue {
-
   def apply[T](priority: Ordering[T],
                bound: Int = 20
               ): IterableBlockingMultiQueue[T] =

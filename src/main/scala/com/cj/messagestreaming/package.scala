@@ -14,7 +14,7 @@ package object messagestreaming {
     def apply(stream: Stream[CheckpointableRecord]) = StreamSubscription(stream)
   }
 
-  case class StreamSubscription(val stream: Stream[CheckpointableRecord]) extends Subscription {
+  case class StreamSubscription(stream: Stream[CheckpointableRecord]) extends Subscription {
     override def mapWithCheckpointing(f: Array[Byte] => Unit): Unit = {
       stream.foreach{
         case CheckpointableRecord(data, callback) => {
