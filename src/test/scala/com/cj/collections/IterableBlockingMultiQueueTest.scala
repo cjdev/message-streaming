@@ -9,14 +9,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
 
-  val intOrdering: Ordering[Int] = new Ordering[Int] {
-    override def compare(x: Int, y: Int): Int = x compare y
+  val intPriority: Ordering[Int] = new Ordering[Int] {
+    override def compare(x: Int, y: Int): Int = -1 * (x compare y)
   }
 
   "stream" should "give back the things we put into it, in the same order" in {
     //given
     val numbers: Stream[Int] = Stream(1, 2, 3, 4, 5, 6, 7, 8, 9)
-    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
+    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intPriority)
     val adder: Queue[Int] = qq.newAdder()
 
     //when
@@ -29,7 +29,7 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
 
   "stream" should "prioritize queues by element order" in {
     //given
-    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
+    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intPriority)
     val adder1: Queue[Int] = qq.newAdder()
     val adder2: Queue[Int] = qq.newAdder()
     val adder3: Queue[Int] = qq.newAdder()
@@ -50,7 +50,7 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
   "Adder" should "block writes if an adder is full" in {
     //given
     val capacity = 3
-    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering, capacity)
+    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](priority = intPriority, bound = capacity)
     val adder: Queue[Int] = qq.newAdder()
     var recordsAdded: Int = 0
 
@@ -79,18 +79,19 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
 
   "hasNext" should "block on pending adds" in {
     //given
-    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
+    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intPriority)
     val adder: Queue[Int] = qq.newAdder()
-    var indicator = false
+    var threadDone = false
 
     //when
     val f = Future {
-      indicator = qq.iterator.hasNext
+      qq.iterator.hasNext
+      threadDone = true
     }
     Thread.sleep(500)
 
     //then
-    indicator should be(false)
+    threadDone should be(false)
 
     //cleanup
     adder.done()
@@ -98,7 +99,7 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
 
   "hasNext" should "not block if the first element of each queue is available" in {
     //given
-    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
+    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intPriority)
     val adder1: Queue[Int] = qq.newAdder()
     val adder2: Queue[Int] = qq.newAdder()
 
@@ -117,7 +118,7 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
 
   "next" should "throw a FooException if the first element is not available" in {
     //given
-    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intOrdering)
+    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue[Int](intPriority)
     val adder1: Queue[Int] = qq.newAdder()
 
     //when
@@ -130,5 +131,22 @@ class IterableBlockingMultiQueueTest extends FlatSpec with Matchers {
       case Failure(e) => e should matchPattern { case e: NoSuchElementException => }
       case Success(_) => {}
     }
+  }
+
+  "hasNext" should "block if there have never been at least `initialAdders` adders" in {
+    // given
+    val qq: IterableBlockingMultiQueue[Int] = IterableBlockingMultiQueue(priority = intPriority, initialAdders = 2)
+    val adder1: Queue[Int] = qq.newAdder()
+    var threadDone = false
+
+    //when
+    val f = Future {
+      qq.iterator().hasNext
+      threadDone = true
+    }
+    Thread.sleep(500)
+
+    //then
+    threadDone should be(false)
   }
 }

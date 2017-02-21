@@ -1,76 +1,66 @@
 package com.cj.collections
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 class IterableBlockingMultiQueue[T] private(
-                                             ordering: Ordering[T],
+                                             priority: Ordering[T], // the greater is first
+                                             initialAdders: Int,
                                              bound: Int
                                            )
   extends java.lang.Iterable[T] with Streamable[T] {
 
+  private var ready = false
+
   private val queueOrder: Ordering[IterableBlockingQueue[T]] = new Ordering[IterableBlockingQueue[T]] {
     override def compare(x: IterableBlockingQueue[T], y: IterableBlockingQueue[T]): Int = {
-      (x.isEmpty(), y.isEmpty()) match {
+      (x.noMore(), y.noMore()) match {
         case (true, true) => 0
         case (false, true) => -1 // empty is greater than nonempty
         case (true, false) => 1
-        case (false, false) => ordering.compare(x.element(), y.element())
+        case (false, false) =>  {
+          priority.compare(x.element(), y.element())
+        }
         //otherwise order is the same as the order of their heads
       }
     }
   }
-
-  // holds adders ready to be read from
   private val priorityQueue: mutable.PriorityQueue[IterableBlockingQueue[T]] =
     mutable.PriorityQueue[IterableBlockingQueue[T]]()(queueOrder)
 
-  // holds adders waiting to be written to
   private val pendingAdders: mutable.Queue[IterableBlockingQueue[T]] = mutable.Queue()
 
   override def iterator(): java.util.Iterator[T] = new java.util.Iterator[T]() {
 
     override def next(): T = {
-      // grab the top-most element from 'priorityQueue'
       val q: IterableBlockingQueue[T] = priorityQueue.dequeue()
-
-      // put it on 'pendingAdders'
       pendingAdders.enqueue(q)
-
-      // get its top-most element
       q.remove()
     }
 
     override def hasNext: Boolean = {
-      // empty 'pendingAdders', and grab the non-empty elements
-      val addersToInsert = pendingAdders.dequeueAll(_ => true).filter(_.nonEmpty())
-
-      // take the non-empty formerly pending adders and put them on 'priorityQueue'
+      while (!ready) { Thread.sleep(300) }
+      val addersToInsert = pendingAdders.dequeueAll(_ => true).filter(_.hasMore())
       addersToInsert.foreach(priorityQueue.enqueue(_))
-
-      // check if 'priorityQueue' is non-empty
-      priorityQueue.nonEmpty
+      priorityQueue.nonEmpty && priorityQueue.head.nonEmpty
     }
   }
 
   def newAdder(): Queue[T] = {
-    // make a new empty queue
-    val q = new IterableBlockingQueue[T]()
-
-    // put it on 'pendingAdders'
+    val q = new IterableBlockingQueue[T](bound)
     pendingAdders.enqueue(q)
-
-    // hand it to the client
+    if (pendingAdders.size >= initialAdders) { ready = true }
     q
   }
 
-  override def stream(): Stream[T] = new IteratorStream(iterator())
+  override def stream(): Stream[T] = iterator().asScala.toStream
 }
 
 object IterableBlockingMultiQueue {
 
-  def apply[T](
-                ordering: Ordering[T],
-                bound: Int = 20
+  def apply[T](priority: Ordering[T],
+               initialAdders: Int = 1,
+               bound: Int = 20
               ): IterableBlockingMultiQueue[T] =
-    new IterableBlockingMultiQueue[T](ordering, bound)
+    new IterableBlockingMultiQueue[T](priority, initialAdders, bound)
 }

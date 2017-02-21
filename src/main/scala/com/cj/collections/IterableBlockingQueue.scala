@@ -3,7 +3,7 @@ package com.cj.collections
 import java.util.concurrent.ConcurrentLinkedQueue
 
 
-class IterableBlockingQueue[T] extends java.lang.Iterable[T] with Queue[T] with Streamable[T] {
+class IterableBlockingQueue[T](bound : Int = Int.MaxValue) extends java.lang.Iterable[T] with Queue[T] with Streamable[T] {
   private val queue: java.util.Queue[T] = new ConcurrentLinkedQueue[T]
   private var isDone: Boolean = false
 
@@ -12,6 +12,9 @@ class IterableBlockingQueue[T] extends java.lang.Iterable[T] with Queue[T] with 
   }
 
   def add(o: T) {
+    while (size >= bound) {
+      Thread.sleep(300)
+    }
     queue.add(o)
   }
 
@@ -25,9 +28,9 @@ class IterableBlockingQueue[T] extends java.lang.Iterable[T] with Queue[T] with 
     queue.element()
   }
 
-  def isEmpty(): Boolean = { queue.isEmpty && isDone }
+  def noMore(): Boolean = { queue.isEmpty && isDone }
 
-  def nonEmpty(): Boolean = { !isEmpty() }
+  def hasMore(): Boolean = { !noMore() }
 
   def waitForElement(): Unit = {
     try
@@ -43,7 +46,7 @@ class IterableBlockingQueue[T] extends java.lang.Iterable[T] with Queue[T] with 
   def iterator(): java.util.Iterator[T] = new java.util.Iterator[T]() {
     override def hasNext: Boolean = {
       waitForElement()
-      nonEmpty()
+      hasMore()
     }
 
     override def next: T = {
