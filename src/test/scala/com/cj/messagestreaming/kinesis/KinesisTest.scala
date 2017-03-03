@@ -3,11 +3,9 @@ package com.cj.messagestreaming.kinesis
 import java.nio.ByteBuffer
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
-import com.amazonaws.services.kinesis.clientlibrary.types.{ProcessRecordsInput, UserRecord}
+import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.KinesisProducer
-import com.cj.messagestreaming.CheckpointableRecord
-import com.cj.messagestreaming.kinesis.Kinesis.OrderedRecord
 import org.hamcrest.Matchers._
 import org.jmock.lib.legacy.ClassImposteriser
 import org.jmock.{AbstractExpectations, Mockery}
@@ -71,26 +69,5 @@ class KinesisTest extends FlatSpec with Matchers {
 
     //then
     context.assertIsSatisfied()
-  }
-
-  "recordPriority" should "prioritize records with lower sequence number" in {
-    //given
-    val bytes: Array[Byte] = Array()
-    val x = OrderedRecord(CheckpointableRecord(bytes, () => {}), ("123", "456"))
-    val y = OrderedRecord(CheckpointableRecord(bytes, () => {}), ("100", "556"))
-
-    //when, then
-    Kinesis.recordPriority.max(x,y) should be (y)
-  }
-
-  "recordPriority" should "use partition key to break sequence number ties" in {
-    // given
-    val bytes: Array[Byte] = Array()
-    val x = OrderedRecord(CheckpointableRecord(bytes, () => {}), ("123", "456"))
-    val y = OrderedRecord(CheckpointableRecord(bytes, () => {}), ("123", "556"))
-
-    //when, then
-    Kinesis.recordPriority.max(x,y) should be (x)
-
   }
 }

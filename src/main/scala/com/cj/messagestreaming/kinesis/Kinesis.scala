@@ -6,10 +6,9 @@ import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultA
 import com.amazonaws.internal.StaticCredentialsProvider
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{InitialPositionInStream, KinesisClientLibConfiguration, Worker}
-import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
-import com.cj.collections.{IterableBlockingMultiQueue, IterableBlockingQueue}
+import com.cj.collections.IterableBlockingQueue
 import com.cj.messagestreaming._
 import com.google.common.util.concurrent.{Futures, ListenableFuture}
 import org.slf4j.LoggerFactory
@@ -178,19 +177,6 @@ object Kinesis {
     new KinesisProducer(cfg)
   }
 
-  case class OrderedRecord(record: CheckpointableRecord, orderKey: (String,String))
-
-  val recordPriority = new Ordering[OrderedRecord] {
-
-    override def compare(x: OrderedRecord, y: OrderedRecord): Int = {
-      if (x.orderKey._1 == x.orderKey._2) {
-        x.orderKey._2.compare(y.orderKey._2)
-      } else {
-        (-1) * x.orderKey._1.compare(y.orderKey._1)
-      }
-    }
-  }
-
   protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
     var mostRecentRecordProcessed:Record = null
     var secondMostRecentRecordProcessed:Record = null
@@ -199,18 +185,13 @@ object Kinesis {
       mostRecentRecordProcessed = record
     }
 
-    val q: IterableBlockingMultiQueue[OrderedRecord] =
-      IterableBlockingMultiQueue(priority = recordPriority, bound = 100)
+    val q = new IterableBlockingQueue[CheckpointableRecord]
 
     val factory = new IRecordProcessorFactory {
-      override def createProcessor(): IRecordProcessor = {
-        new CheckpointingRecordProcessor(q.newAdder())
-      }
+      override def createProcessor(): IRecordProcessor = new CheckpointingRecordProcessor(q)
     }
-
-    val s: Stream[CheckpointableRecord] = q.stream().map(_.record)
-
-    (factory, Subscription(s))
+    
+    (factory, Subscription(q))
   }
 
   class KinesisPublishResult(urr: UserRecordResult) extends PublishResult {

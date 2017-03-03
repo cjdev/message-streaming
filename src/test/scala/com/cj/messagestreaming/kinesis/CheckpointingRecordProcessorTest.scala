@@ -14,7 +14,6 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import com.cj.messagestreaming.CheckpointableRecord
-import com.cj.messagestreaming.kinesis.Kinesis.OrderedRecord
 
 class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 
@@ -31,8 +30,8 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 
   class Setup {
     var time = 0L
-    val q = new IterableBlockingQueue[OrderedRecord]
-    val i = q.iterator().map(_.record)
+    val q = new IterableBlockingQueue[CheckpointableRecord]
+    val i = q.iterator()
     val recordProcessor: IRecordProcessor = new CheckpointingRecordProcessor(q, time)
     recordProcessor.initialize(new InitializationInput)
     val checkpointer = new StubCheckpointer {
@@ -81,7 +80,7 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
     recordProcessor.processRecords(processRecordsInput)
     val things = records.map(_.getData).map(thing => new String(thing.array(), "UTF-8"))
 
-    val consumedRecords = q.iterator().map( t=> new String(t.record.data, "UTF-8"))
+    val consumedRecords = q.iterator().map( t=> new String(t.data, "UTF-8"))
 
     things.foreach ( r => consumedRecords.next should be (r) )
   }
