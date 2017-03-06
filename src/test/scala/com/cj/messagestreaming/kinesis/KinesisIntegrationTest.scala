@@ -52,6 +52,7 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
   "The producer and consumer" should "be able to send and receive data" taggedAs IntegrationTest in {
 
 
+    println(awsAccessKeyId)
     val recordsToSend: List[Array[Byte]] = 1.to(5).map(_.toString()).map(_.getBytes).toList
     val recievedRecords: mutable.Queue[Array[Byte]] = new mutable.Queue()
     var numRecieved: Int = 0
