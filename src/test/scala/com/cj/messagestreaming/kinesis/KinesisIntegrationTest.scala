@@ -20,9 +20,14 @@ import com.amazonaws.services.dynamodbv2.document.{DynamoDB, Table}
 
 class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter {
 
+  def envOrFail(e: String): String = {
+    Option(System.getenv(e)).getOrElse(
+      fail(s"Missing environment varialble: $e")
+    )
+  }
 
-  val awsAccessKeyId = System.getenv("AWS_ACCESS_KEY_ID")
-  val awsSecretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+  lazy val awsAccessKeyId = envOrFail("AWS_ACCESS_KEY_ID")
+  lazy val awsSecretAccessKey = envOrFail("AWS_SECRET_ACCESS_KEY")
   val region: String = "us-west-1"
   val stream: String = "testing"
   val applicationName = "test"
