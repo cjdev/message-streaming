@@ -21,7 +21,7 @@ node("branches") {
       }
 
       stage('Maven Deploy') {
-        sh "mvn deploy"
+        sh "mvn deploy -DskipTests"
       }
 
     }
