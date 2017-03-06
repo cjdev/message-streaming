@@ -15,7 +15,7 @@ node("branches") {
     ) {
 
       stage('Maven Build') {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'agitators-ecr', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'agitators-aws-test-resources', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
           sh "mvn -U clean install -Pall-tests"
         }
       }
