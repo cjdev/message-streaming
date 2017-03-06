@@ -43,16 +43,14 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
     val dynamoDB: DynamoDB = new DynamoDB(client)
 
     Try(dynamoDB.getTable(applicationName).delete()) match {
-      case Success(_) => println("Deleted dynamo table")
-      case Failure(_) => println("Didn't delete dynamo table")
+      case Success(_) => println("Deleted existing dynamo table")
+      case Failure(_) =>
     }
   }
 
 
   "The producer and consumer" should "be able to send and receive data" taggedAs IntegrationTest in {
 
-
-    println(awsAccessKeyId)
     val recordsToSend: List[Array[Byte]] = 1.to(5).map(_.toString()).map(_.getBytes).toList
     val recievedRecords: mutable.Queue[Array[Byte]] = new mutable.Queue()
     var numRecieved: Int = 0
