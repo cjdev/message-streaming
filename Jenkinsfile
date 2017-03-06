@@ -1,7 +1,7 @@
 
 @Library('gitlab.cj.com/ad-systems/jenkins-utils@master') _
 
-node("branches") {
+node("build130") {
   ansiColor('xterm') {
     checkout scm
     gitCommit = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
