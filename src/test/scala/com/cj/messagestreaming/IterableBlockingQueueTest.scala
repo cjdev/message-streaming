@@ -1,14 +1,12 @@
-package com.cj.collections
+package com.cj.messagestreaming
 
 import org.scalatest.{Assertions, FlatSpec, Matchers}
 
-import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
 import scala.concurrent.ExecutionContext.Implicits.global
-
+import scala.concurrent.Future
 
 class IterableBlockingQueueTest extends FlatSpec with Matchers with Assertions {
-  
+
   behavior of "An IterableBlockingQueue"
 
   it should "give me back the things i put inside" in {
@@ -82,14 +80,14 @@ class IterableBlockingQueueTest extends FlatSpec with Matchers with Assertions {
     val q = new IterableBlockingQueue[Int]
     val i = q.iterator()
 
-    an [java.util.NoSuchElementException] should be thrownBy i.next
+    an[java.util.NoSuchElementException] should be thrownBy i.next
 
-    Future{
-        Thread.sleep(600L)
-        q.add(1)
-      }
+    Future {
+      Thread.sleep(600L)
+      q.add(1)
+    }
     i.hasNext
     i.next should be(1)
-    }
+  }
 
 }

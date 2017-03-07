@@ -2,20 +2,18 @@ package com.cj.messagestreaming.kinesis
 
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.regions.{Region, Regions}
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream
-import com.cj.messagestreaming.{Publication, Subscription}
-import com.cj.messagestreaming.kinesis.Kinesis.{KinesisConsumerConfig, KinesisProducerConfig, makePublication, makeSubscription}
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
+import com.amazonaws.services.dynamodbv2.document.DynamoDB
+import com.amazonaws.services.kinesis.producer.UserRecordResult
+import com.cj.messagestreaming.Publication
 import com.cj.tags.IntegrationTest
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
 import scala.collection.mutable
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.SECONDS
-import scala.concurrent.{Await, Future, Promise, TimeoutException}
-import scala.util.{Failure, Success, Try}
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.amazonaws.services.dynamodbv2.{AmazonDynamoDBClient, document}
-import com.amazonaws.services.dynamodbv2.document.{DynamoDB, Table}
+import scala.concurrent._
+import scala.concurrent.duration.{Duration, SECONDS}
+import scala.util.{Failure, Success, Try}
 
 
 class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter {
@@ -34,8 +32,8 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
   val workerId = "test"
 
 
-  before( ensureNoDynamoTable() )
-  after(  ensureNoDynamoTable() )
+  before(ensureNoDynamoTable())
+  after(ensureNoDynamoTable())
 
   def ensureNoDynamoTable(): Unit = {
     val client = new AmazonDynamoDBClient(new BasicAWSCredentials(awsAccessKeyId, awsSecretAccessKey))
@@ -67,7 +65,7 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
     )
 
 
-    val consumer =  makeSubscription(consumerConfig)
+    val consumer = makeSubscription(consumerConfig)
 
 
     val f: Array[Byte] => Unit = x => {
@@ -79,7 +77,9 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
       }
     }
 
-    val consumerThread = Future{ consumer.mapWithCheckpointing(f) }
+    val consumerThread = Future {
+      consumer.mapWithCheckpointing(f)
+    }
 
 
     val config: KinesisProducerConfig = KinesisProducerConfig(
@@ -90,15 +90,17 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
     )
 
 
-    val pub: Publication = makePublication(config)
+    val pub: Publication[UserRecordResult] = makePublication(config)
 
     Thread.sleep(30000)
 
     val futures = recordsToSend.map(pub(_))
 
     print("Sending records")
-    futures.map(x => {
-      Try{ x.get(30,SECONDS) } match {
+    futures.foreach(x => {
+      Try {
+        Await.result(x, Duration(30, SECONDS))
+      } match {
         case Success(_) => print(".")
         case Failure(e) => fail(e)
       }
@@ -112,11 +114,12 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
 
     result match {
       case Success(_) =>
-        def string(x: Array[Byte]): String = new String(x,"UTF-8")
-        recievedRecords.toList.map(string).sorted should be (recordsToSend.map(string).sorted)
+        def string(x: Array[Byte]): String = new String(x, "UTF-8")
+
+        recievedRecords.toList.map(string).sorted should be(recordsToSend.map(string).sorted)
       case Failure(e) =>
         e match {
-          case _:TimeoutException => fail("Did not get all the records after 30 seconds")
+          case _: TimeoutException => fail("Did not get all the records after 30 seconds")
           case _ => fail(e)
         }
     }

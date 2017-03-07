@@ -1,12 +1,30 @@
 package com.cj
 
-import com.amazonaws.services.kinesis.producer.Attempt
-import com.cj.collections.Streamable
-import com.google.common.util.concurrent.ListenableFuture
+import scala.concurrent.Future
 
 package object messagestreaming {
 
-  trait Subscription  extends Streamable[CheckpointableRecord] {
+  trait Queue[T] {
+    def add(t: T): Unit
+    def done(): Unit
+  }
+
+  trait Streamable[T] {
+    def stream: Stream[T]
+  }
+
+  trait Closable {
+    def close(): Unit
+  }
+
+  case class IteratorStream[T](i: java.util.Iterator[T]) extends Stream[T] {
+    override lazy val head: T = { i.hasNext; i.next }
+    override lazy val tail: IteratorStream[T] = { head; IteratorStream(i)}
+    override def tailDefined: Boolean = false
+    override def isEmpty: Boolean = !i.hasNext
+  }
+
+  trait Subscription extends Streamable[CheckpointableRecord] {
     def mapWithCheckpointing(f: Array[Byte] => Unit): Unit
   }
 
@@ -14,35 +32,20 @@ package object messagestreaming {
     def apply(stream: Stream[CheckpointableRecord]) = StreamSubscription(stream)
   }
 
-  case class StreamSubscription(stream: Stream[CheckpointableRecord]) extends Subscription {
+  case class StreamSubscription(stream: Stream[CheckpointableRecord])
+    extends Subscription {
     override def mapWithCheckpointing(f: Array[Byte] => Unit): Unit = {
-      stream.foreach{
-        case CheckpointableRecord(data, callback) => {
+      stream.foreach {
+        case CheckpointableRecord(data, callback) =>
           f(data)
           callback()
-        }
       }
     }
   }
-  
+
   case class CheckpointableRecord(data: Array[Byte], checkpointCallback: CheckpointCallback)
-  
+
   type CheckpointCallback = () => Unit
-  
-  trait Publication extends (Array[Byte] => ListenableFuture[PublishResult]) with Closable
 
-  trait PublishResult {
-    def getAttempts: List[Attempt]
-
-    def getSequenceNumber: String
-
-    def getShardId: String
-
-    def isSuccessful: Boolean
-  }
-
-  trait Closable {
-    def close(): Unit
-  }
-
+  trait Publication[+R] extends (Array[Byte] => Future[R]) with Closable
 }

@@ -1,49 +1,66 @@
-package com.cj.messagestreaming.kinesis
+package com.cj.messagestreaming
 
 import java.nio.ByteBuffer
 
-import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
-import com.amazonaws.internal.StaticCredentialsProvider
+import com.amazonaws.auth.{AWSCredentialsProvider, AWSStaticCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{InitialPositionInStream, KinesisClientLibConfiguration, Worker}
 import com.amazonaws.services.kinesis.model.Record
-import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
-import com.cj.collections.IterableBlockingQueue
-import com.cj.messagestreaming._
-import com.google.common.util.concurrent.{Futures, ListenableFuture}
+import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
+import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
-object Kinesis {
+package object kinesis {
 
-  lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
+  private lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
 
-  case class KinesisProducerConfig private[Kinesis](accessKeyId: Option[String], secretKey: Option[String], region: Option[String], streamName: String)
+  case class KinesisProducerConfig private[kinesis](
+                                                     accessKeyId: Option[String],
+                                                     secretKey: Option[String],
+                                                     region: Option[String],
+                                                     streamName: String
+                                                   )
 
   object KinesisProducerConfig {
     def apply(streamName: String): KinesisProducerConfig = {
       KinesisProducerConfig(None, None, None, streamName)
     }
 
-    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String): KinesisProducerConfig = {
-      KinesisProducerConfig(Some(accessKeyId), Some(secretKey), Some(region), streamName)
+    def apply(
+               accessKeyId: String,
+               secretKey: String,
+               region: String,
+               streamName: String
+             ): KinesisProducerConfig = {
+      KinesisProducerConfig(
+        Some(accessKeyId),
+        Some(secretKey),
+        Some(region),
+        streamName
+      )
     }
   }
 
-  case class KinesisConsumerConfig private[Kinesis]( accessKeyId: Option[String],
+  case class KinesisConsumerConfig private[kinesis](
+                                                     accessKeyId: Option[String],
                                                      secretKey: Option[String],
                                                      region: Option[String],
                                                      streamName: String,
                                                      applicationName: String,
                                                      workerId: String,
-                                                     initialPositionInStream: InitialPositionInStream)
+                                                     initialPositionInStream: InitialPositionInStream
+                                                   )
 
   object KinesisConsumerConfig {
-    def apply(streamName: String, applicationName: String, workerId: String): KinesisConsumerConfig = {
+    def apply(
+               streamName: String,
+               applicationName: String,
+               workerId: String
+             ): KinesisConsumerConfig = {
       KinesisConsumerConfig(
         accessKeyId = None,
         secretKey = None,
@@ -55,7 +72,12 @@ object Kinesis {
       )
     }
 
-    def apply(streamName: String, applicationName: String, workerId: String, initialPositionInStream: InitialPositionInStream): KinesisConsumerConfig = {
+    def apply(
+               streamName: String,
+               applicationName: String,
+               workerId: String,
+               initialPositionInStream: InitialPositionInStream
+             ): KinesisConsumerConfig = {
       KinesisConsumerConfig(
         accessKeyId = None,
         secretKey = None,
@@ -67,7 +89,14 @@ object Kinesis {
       )
     }
 
-    def apply(accessKeyId: String, secretKey: String, region: String, streamName: String, applicationName: String, workerId: String): KinesisConsumerConfig = {
+    def apply(
+               accessKeyId: String,
+               secretKey: String,
+               region: String,
+               streamName: String,
+               applicationName: String,
+               workerId: String
+             ): KinesisConsumerConfig = {
       KinesisConsumerConfig(
         accessKeyId = Some(accessKeyId),
         secretKey = Some(secretKey),
@@ -79,7 +108,8 @@ object Kinesis {
       )
     }
 
-    def apply( accessKeyId: String,
+    def apply(
+               accessKeyId: String,
                secretKey: String,
                region: String,
                streamName: String,
@@ -99,8 +129,15 @@ object Kinesis {
     }
   }
 
-  def makePublication(config: KinesisProducerConfig): Publication = {
-    produce(config.streamName, getKinesisProducer(config.accessKeyId, config.secretKey, config.region))
+  def makePublication(config: KinesisProducerConfig): Publication[UserRecordResult] = {
+    produce(
+      config.streamName,
+      getKinesisProducer(
+        config.accessKeyId,
+        config.secretKey,
+        config.region
+      )
+    )
   }
 
   def makeSubscription(config: KinesisConsumerConfig): Subscription = {
@@ -108,7 +145,7 @@ object Kinesis {
       for {
         a <- config.accessKeyId
         s <- config.secretKey
-      } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))
+      } yield new AWSStaticCredentialsProvider(new BasicAWSCredentials(a, s))
     }.getOrElse(new DefaultAWSCredentialsProviderChain)
     val kinesisConfig = new KinesisClientLibConfiguration(
       config.applicationName,
@@ -118,8 +155,10 @@ object Kinesis {
     ).withInitialPositionInStream(config.initialPositionInStream)
     config.region.foreach(kinesisConfig.withRegionName)
 
-    val (recordProcessorFactory, stream) = subscribe()
-    val worker = new Worker.Builder().recordProcessorFactory(recordProcessorFactory).config(kinesisConfig).build()
+    val (recordProcessorFactory, sub) = subscribe()
+    val worker = new Worker.Builder()
+      .recordProcessorFactory(recordProcessorFactory)
+      .config(kinesisConfig).build()
 
     Future {
       Try(worker.run())
@@ -128,35 +167,40 @@ object Kinesis {
       case Failure(e) => logger.error(s"Disaster strikes! The worker has terminated abnormally. Error: $e")
     })
 
-    stream
+    sub
   }
 
-  implicit def guavify[T,U](f: Function[T,U]) : com.google.common.base.Function[T, U] = {
-    new com.google.common.base.Function[T, U]() {
-      override def apply(t: T): U = f(t)
-    }
-  }
+  protected[kinesis] def produce(
+                                  streamName: String,
+                                  producer: KinesisProducer
+                                ): Publication[UserRecordResult] = {
+    new Publication[UserRecordResult] {
 
-  protected[kinesis] def produce(streamName: String, producer: KinesisProducer): Publication = {
-    new Publication {
-      var shutdown = false
+      private var shutdown = false
 
-      def apply(byteArray: Array[Byte]) : ListenableFuture[PublishResult] = {
+      def asScalaFuture[A](lf: ListenableFuture[A]): Future[A] = {
+        val p = Promise[A]
+        Futures.addCallback(lf,
+          new FutureCallback[A] {
+            def onSuccess(result: A): Unit = p.success(result)
+
+            def onFailure(t: Throwable): Unit = p.failure(t)
+          })
+        p.future
+      }
+
+      def apply(byteArray: Array[Byte]): Future[UserRecordResult] = {
         if (!shutdown) {
           val time = System.currentTimeMillis.toString
           val bytes = ByteBuffer.wrap(byteArray)
           val kinesisFuture = producer.addUserRecord(streamName, time, bytes)
-
-          val getPublishResultFromUserRecordResult: UserRecordResult => KinesisPublishResult  = new KinesisPublishResult(_)
-
-          Futures.transform(kinesisFuture, getPublishResultFromUserRecordResult)
-
+          asScalaFuture(kinesisFuture)
         } else {
-          Futures.immediateFailedFuture(new Throwable("Publication is shutting down."))
+          Future.failed(new Throwable("Publication is shutting down."))
         }
       }
 
-      def close() = {
+      def close(): Unit = {
         shutdown = true
         producer.flushSync()
         producer.destroy()
@@ -164,12 +208,16 @@ object Kinesis {
     }
   }
 
-  def getKinesisProducer(accessKeyId: Option[String], secretKey: Option[String], region: Option[String]): KinesisProducer = {
+  protected[kinesis] def getKinesisProducer(
+                                             accessKeyId: Option[String],
+                                             secretKey: Option[String],
+                                             region: Option[String]
+                                           ): KinesisProducer = {
     val provider = {
       for {
         a <- accessKeyId
         s <- secretKey
-      } yield new StaticCredentialsProvider(new BasicAWSCredentials(a, s))
+      } yield new AWSStaticCredentialsProvider(new BasicAWSCredentials(a, s))
     }.getOrElse(new DefaultAWSCredentialsProviderChain)
     val cfg: KinesisProducerConfiguration = new KinesisProducerConfiguration()
     cfg.setCredentialsProvider(provider)
@@ -178,9 +226,10 @@ object Kinesis {
   }
 
   protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
-    var mostRecentRecordProcessed:Record = null
-    var secondMostRecentRecordProcessed:Record = null
-    def onProcess(record: Record): Unit ={
+    var mostRecentRecordProcessed: Record = null
+    var secondMostRecentRecordProcessed: Record = null
+
+    def onProcess(record: Record): Unit = {
       secondMostRecentRecordProcessed = mostRecentRecordProcessed
       mostRecentRecordProcessed = record
     }
@@ -188,20 +237,10 @@ object Kinesis {
     val q = new IterableBlockingQueue[CheckpointableRecord]
 
     val factory = new IRecordProcessorFactory {
-      override def createProcessor(): IRecordProcessor = new CheckpointingRecordProcessor(q)
+      override def createProcessor(): IRecordProcessor =
+        new CheckpointingRecordProcessor(q)
     }
-    
-    (factory, Subscription(q))
+
+    (factory, Subscription(q.stream))
   }
-
-  class KinesisPublishResult(urr: UserRecordResult) extends PublishResult {
-    override def getAttempts: List[Attempt] = urr.getAttempts.toList
-
-    override def getSequenceNumber: String = urr.getSequenceNumber
-
-    override def getShardId: String = urr.getShardId
-
-    override def isSuccessful: Boolean = urr.isSuccessful
-  }
-
 }
