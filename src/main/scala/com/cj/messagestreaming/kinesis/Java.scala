@@ -25,8 +25,10 @@ object Java {
       java.util.stream.StreamSupport.stream(sub.stream.toIterable.asJava.spliterator(), false)
   }
 
-  class KinesisPublicationJ(config: KinesisProducerConfig)
-    extends PublicationJ[PublishResult] {
+  class KinesisPublicationJ[T](
+                                config: KinesisProducerConfig,
+                                serializer: FunctionJ[T, Array[Byte]]
+                              ) extends PublicationJ[T, PublishResult] {
 
     private var shutdown = false
 
@@ -48,8 +50,9 @@ object Java {
         def isDone: Boolean = true
       }
 
-    def publish(bytes: Array[Byte]): FutureJ[PublishResult] =
+    def publish(t: T): FutureJ[PublishResult] =
       if (!shutdown) {
+        val bytes = serializer.apply(t)
         val time = System.currentTimeMillis.toString
         val realbytes = ByteBuffer.wrap(bytes)
         com.google.common.util.concurrent.Futures.transform(

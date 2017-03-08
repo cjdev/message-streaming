@@ -13,9 +13,9 @@ object Java {
     def stream(): StreamJ[CheckpointableRecord]
   }
 
-  abstract class PublicationJ[R] {
+  abstract class PublicationJ[T, R] {
 
-    def publish(bytes: Array[Byte]): FutureJ[R]
+    def publish(t: T): FutureJ[R]
 
     def close(): Unit
   }

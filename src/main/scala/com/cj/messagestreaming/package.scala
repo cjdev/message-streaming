@@ -47,5 +47,5 @@ package object messagestreaming {
 
   type CheckpointCallback = () => Unit
 
-  trait Publication[+R] extends (Array[Byte] => Future[R]) with Closable
+  trait Publication[-T, +R] extends (T => Future[R]) with Closable
 }

@@ -90,7 +90,7 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
     )
 
 
-    val pub: Publication[PublishResult] = makePublication(config)
+    val pub: Publication[Array[Byte], PublishResult] = makePublication(config, x => x)
 
     Thread.sleep(30000)
 

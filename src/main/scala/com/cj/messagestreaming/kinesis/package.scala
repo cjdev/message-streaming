@@ -164,16 +164,25 @@ package object kinesis {
     }
   }
 
-  def makePublication(config: KinesisProducerConfig): Publication[PublishResult] = {
-    produce(
-      config.streamName,
-      getKinesisProducer(
-        config.accessKeyId,
-        config.secretKey,
-        config.region
+  def makePublication[T](
+                          config: KinesisProducerConfig,
+                          serialize: T => Array[Byte]
+                        ): Publication[T, PublishResult] =
+    new Publication[T, PublishResult] {
+
+      private val producer = produce(
+        config.streamName,
+        getKinesisProducer(
+          config.accessKeyId,
+          config.secretKey,
+          config.region
+        )
       )
-    )
-  }
+
+      def close(): Unit = producer.close()
+
+      def apply(t: T): Future[PublishResult] = producer(serialize(t))
+    }
 
   def makeSubscription(config: KinesisConsumerConfig): Subscription = {
     val provider: AWSCredentialsProvider = {
@@ -208,8 +217,8 @@ package object kinesis {
   protected[kinesis] def produce(
                                   streamName: String,
                                   producer: KinesisProducer
-                                ): Publication[PublishResult] = {
-    new Publication[PublishResult] {
+                                ): Publication[Array[Byte], PublishResult] = {
+    new Publication[Array[Byte], PublishResult] {
 
       private var shutdown = false
 
