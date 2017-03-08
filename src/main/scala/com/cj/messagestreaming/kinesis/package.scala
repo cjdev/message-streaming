@@ -6,17 +6,52 @@ import com.amazonaws.auth.{AWSCredentialsProvider, AWSStaticCredentialsProvider,
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{InitialPositionInStream, KinesisClientLibConfiguration, Worker}
 import com.amazonaws.services.kinesis.model.Record
-import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
+import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
+import scala.collection.JavaConversions._
 
 package object kinesis {
 
   private lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
+
+  case class PublishAttempt(
+                             getDelay: Int,
+                             getDuration: Int,
+                             getErrorMessage: String,
+                             getErrorCode: String,
+                             isSuccessful: Boolean
+                           )
+
+  object PublishAttempt {
+    def fromKinesis(attempt: Attempt): PublishAttempt = PublishAttempt(
+      getDelay = attempt.getDelay,
+      getDuration = attempt.getDuration,
+      getErrorMessage = attempt.getErrorMessage,
+      getErrorCode = attempt.getErrorCode,
+      isSuccessful = attempt.isSuccessful
+    )
+  }
+
+  case class PublishResult(
+                            getAttempts: List[PublishAttempt],
+                            getSequenceNumber: String,
+                            getShardId: String,
+                            isSuccessful: Boolean
+                          )
+
+  object PublishResult {
+    def fromKinesis(urr: UserRecordResult): PublishResult = PublishResult(
+      getAttempts = urr.getAttempts.map(PublishAttempt.fromKinesis).toList,
+      getSequenceNumber = urr.getSequenceNumber,
+      getShardId = urr.getShardId,
+      isSuccessful = urr.isSuccessful
+    )
+  }
 
   case class KinesisProducerConfig private[kinesis](
                                                      accessKeyId: Option[String],
@@ -129,7 +164,7 @@ package object kinesis {
     }
   }
 
-  def makePublication(config: KinesisProducerConfig): Publication[UserRecordResult] = {
+  def makePublication(config: KinesisProducerConfig): Publication[PublishResult] = {
     produce(
       config.streamName,
       getKinesisProducer(
@@ -173,8 +208,8 @@ package object kinesis {
   protected[kinesis] def produce(
                                   streamName: String,
                                   producer: KinesisProducer
-                                ): Publication[UserRecordResult] = {
-    new Publication[UserRecordResult] {
+                                ): Publication[PublishResult] = {
+    new Publication[PublishResult] {
 
       private var shutdown = false
 
@@ -189,12 +224,12 @@ package object kinesis {
         p.future
       }
 
-      def apply(byteArray: Array[Byte]): Future[UserRecordResult] = {
+      def apply(byteArray: Array[Byte]): Future[PublishResult] = {
         if (!shutdown) {
           val time = System.currentTimeMillis.toString
           val bytes = ByteBuffer.wrap(byteArray)
           val kinesisFuture = producer.addUserRecord(streamName, time, bytes)
-          asScalaFuture(kinesisFuture)
+          asScalaFuture(kinesisFuture).map(PublishResult.fromKinesis)
         } else {
           Future.failed(new Throwable("Publication is shutting down."))
         }

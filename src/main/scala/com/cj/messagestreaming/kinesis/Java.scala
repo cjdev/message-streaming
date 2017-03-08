@@ -26,21 +26,21 @@ object Java {
   }
 
   class KinesisPublicationJ(config: KinesisProducerConfig)
-    extends PublicationJ[UserRecordResult] {
+    extends PublicationJ[PublishResult] {
 
     private var shutdown = false
 
     private val producer: KinesisProducer =
       getKinesisProducer(config.accessKeyId, config.secretKey, config.region)
 
-    private def makeFailure: FutureJ[UserRecordResult] =
-      new FutureJ[UserRecordResult] {
+    private def makeFailure: FutureJ[PublishResult] =
+      new FutureJ[PublishResult] {
         def isCancelled: Boolean = true
 
-        def get(): UserRecordResult =
+        def get(): PublishResult =
           throw new Throwable("Publication is shutting down.")
 
-        def get(timeout: Long, unit: TimeUnit): UserRecordResult =
+        def get(timeout: Long, unit: TimeUnit): PublishResult =
           throw new Throwable("Publication is shutting down.")
 
         def cancel(mayInterruptIfRunning: Boolean): Boolean = false
@@ -48,11 +48,16 @@ object Java {
         def isDone: Boolean = true
       }
 
-    def publish(bytes: Array[Byte]): FutureJ[UserRecordResult] =
+    def publish(bytes: Array[Byte]): FutureJ[PublishResult] =
       if (!shutdown) {
         val time = System.currentTimeMillis.toString
         val realbytes = ByteBuffer.wrap(bytes)
-        producer.addUserRecord(config.streamName, time, realbytes)
+        com.google.common.util.concurrent.Futures.transform(
+          producer.addUserRecord(config.streamName, time, realbytes),
+          new com.google.common.base.Function[UserRecordResult, PublishResult] {
+            def apply(t: UserRecordResult): PublishResult =
+              PublishResult.fromKinesis(t)
+          })
       } else {
         makeFailure
       }
