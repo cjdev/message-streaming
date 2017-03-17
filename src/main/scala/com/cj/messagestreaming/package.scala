@@ -25,11 +25,28 @@ package object messagestreaming {
   }
 
   trait Subscription[T] extends Streamable[Checkpointable[T]] {
+
     def mapWithCheckpointing(f: T => Unit): Unit
+
+    def x(that: Subscription[T]): Subscription[T] =
+      Subscription.interlace[T](this, that)
   }
 
   object Subscription {
+
     def apply[T](stream: Stream[Checkpointable[T]]) = StreamSubscription(stream)
+
+    def interlace[T](left: Subscription[T], right: Subscription[T]): Subscription[T] =
+      (left.stream.isEmpty, right.stream.isEmpty) match {
+        case (true, true) => StreamSubscription(Stream.empty)
+        case (true, false) => right
+        case (false, true) => left
+        case (false, false) =>
+          StreamSubscription(left.stream.head +: right.stream.head +: interlace(
+            StreamSubscription(left.stream.tail),
+            StreamSubscription(right.stream.tail)
+          ).stream)
+      }
   }
 
   case class StreamSubscription[T](stream: Stream[Checkpointable[T]])
