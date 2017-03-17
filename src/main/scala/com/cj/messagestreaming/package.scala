@@ -9,7 +9,7 @@ package object messagestreaming {
     def done(): Unit
   }
 
-  trait Streamable[T] {
+  trait Streamable[+T] {
     def stream: Stream[T]
   }
 
@@ -24,12 +24,12 @@ package object messagestreaming {
     override def isEmpty: Boolean = !i.hasNext
   }
 
-  trait Subscription[T] extends Streamable[Checkpointable[T]] {
+  trait Subscription[+T] extends Streamable[Checkpointable[T]] {
 
     def mapWithCheckpointing(f: T => Unit): Unit
 
-    def x(that: Subscription[T]): Subscription[T] =
-      Subscription.interlace[T](this, that)
+    def x[U >: T](that: Subscription[U]): Subscription[U] =
+      Subscription.interlace[U](this, that)
   }
 
   object Subscription {
@@ -49,7 +49,7 @@ package object messagestreaming {
       }
   }
 
-  case class StreamSubscription[T](stream: Stream[Checkpointable[T]])
+  case class StreamSubscription[+T](stream: Stream[Checkpointable[T]])
     extends Subscription[T] {
     override def mapWithCheckpointing(f: T => Unit): Unit = {
       stream.foreach {
