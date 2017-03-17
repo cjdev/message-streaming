@@ -184,7 +184,7 @@ package object kinesis {
       def apply(t: T): Future[PublishResult] = producer(serialize(t))
     }
 
-  def makeSubscription(config: KinesisConsumerConfig): Subscription = {
+  def makeSubscription(config: KinesisConsumerConfig): Subscription[Array[Byte]] = {
     val provider: AWSCredentialsProvider = {
       for {
         a <- config.accessKeyId
@@ -269,7 +269,7 @@ package object kinesis {
     new KinesisProducer(cfg)
   }
 
-  protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription) = {
+  protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription[Array[Byte]]) = {
     var mostRecentRecordProcessed: Record = null
     var secondMostRecentRecordProcessed: Record = null
 
@@ -278,7 +278,7 @@ package object kinesis {
       mostRecentRecordProcessed = record
     }
 
-    val q = new IterableBlockingQueue[CheckpointableRecord]
+    val q = new IterableBlockingQueue[Checkpointable[Array[Byte]]]
 
     val factory = new IRecordProcessorFactory {
       override def createProcessor(): IRecordProcessor =

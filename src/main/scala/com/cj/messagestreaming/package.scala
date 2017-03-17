@@ -24,26 +24,45 @@ package object messagestreaming {
     override def isEmpty: Boolean = !i.hasNext
   }
 
-  trait Subscription extends Streamable[CheckpointableRecord] {
-    def mapWithCheckpointing(f: Array[Byte] => Unit): Unit
+  trait Subscription[T] extends Streamable[Checkpointable[T]] {
+    def mapWithCheckpointing(f: T => Unit): Unit
   }
 
   object Subscription {
-    def apply(stream: Stream[CheckpointableRecord]) = StreamSubscription(stream)
+    def apply[T](stream: Stream[Checkpointable[T]]) = StreamSubscription(stream)
   }
 
-  case class StreamSubscription(stream: Stream[CheckpointableRecord])
-    extends Subscription {
-    override def mapWithCheckpointing(f: Array[Byte] => Unit): Unit = {
+  case class StreamSubscription[T](stream: Stream[Checkpointable[T]])
+    extends Subscription[T] {
+    override def mapWithCheckpointing(f: T => Unit): Unit = {
       stream.foreach {
-        case CheckpointableRecord(data, callback) =>
+        case Checkpointable(data, callback) =>
           f(data)
           callback()
       }
     }
   }
 
-  case class CheckpointableRecord(data: Array[Byte], checkpointCallback: CheckpointCallback)
+  case class Checkpointable[+T](data: T, checkpointCallback: CheckpointCallback) {
+
+    def map[U](f: T => U): Checkpointable[U] =
+      Checkpointable(f(data), checkpointCallback)
+
+    def flatMap[U](k: T => Checkpointable[U]): Checkpointable[U] =
+      k(data) match {
+        case Checkpointable(newData, newCallback) =>
+          Checkpointable(newData, () => { checkpointCallback(); newCallback() })
+      }
+
+    def runCheckpointable: T = { checkpointCallback(); data }
+  }
+
+  object Checkpointable {
+
+    def apply[T](data: T): Checkpointable[T] = point(data)
+
+    def point[T](data: T): Checkpointable[T] = Checkpointable(data, () => {})
+  }
 
   type CheckpointCallback = () => Unit
 

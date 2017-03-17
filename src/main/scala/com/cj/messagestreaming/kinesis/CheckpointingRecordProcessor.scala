@@ -15,7 +15,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
 
-class CheckpointingRecordProcessor(q: Queue[CheckpointableRecord], time: => Long = System.currentTimeMillis()) extends IRecordProcessor {
+class CheckpointingRecordProcessor(q: Queue[Checkpointable[Array[Byte]]], time: => Long = System.currentTimeMillis()) extends IRecordProcessor {
 
   private lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
 
@@ -48,7 +48,7 @@ class CheckpointingRecordProcessor(q: Queue[CheckpointableRecord], time: => Long
       checkpointerPromise.complete(Try(checkpointer))
       checkpointIfReady()
     }
-    q.add(CheckpointableRecord(record.getData.array(), () => markProcessedRecord()))
+    q.add(Checkpointable[Array[Byte]](record.getData.array(), () => markProcessedRecord()))
 
   }
 

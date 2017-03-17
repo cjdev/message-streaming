@@ -3,12 +3,12 @@ package com.cj.messagestreaming.kinesis
 import java.nio.ByteBuffer
 import java.util
 
+import com.cj.messagestreaming._
+
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason
 import com.amazonaws.services.kinesis.model.Record
-import com.cj.messagestreaming.IterableBlockingQueue
-import com.cj.messagestreaming.CheckpointableRecord
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConversions._
@@ -28,13 +28,13 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
       })
   }
 
-  def consumeOne(i: util.Iterator[CheckpointableRecord]): Unit = {
+  def consumeOne(i: util.Iterator[Checkpointable[Array[Byte]]]): Unit = {
     i.next.checkpointCallback() // pulls out one thing and calls the callback (marks it as consumed)
   }
 
   class Setup {
     var time = 0L
-    val q = new IterableBlockingQueue[CheckpointableRecord]
+    val q = new IterableBlockingQueue[Checkpointable[Array[Byte]]]
     val i = q.iterator()
     val recordProcessor: IRecordProcessor = new CheckpointingRecordProcessor(q, time)
     recordProcessor.initialize(new InitializationInput)

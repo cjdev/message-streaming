@@ -6,11 +6,11 @@ import java.util.stream.{Stream => StreamJ}
 
 object Java {
 
-  abstract class SubscriptionJ {
+  abstract class SubscriptionJ[T] {
 
-    def mapWithCheckpointing(f: FunctionJ[Array[Byte], Unit]): Unit
+    def mapWithCheckpointing(f: FunctionJ[T, Unit]): Unit
 
-    def stream(): StreamJ[CheckpointableRecord]
+    def stream(): StreamJ[Checkpointable[T]]
   }
 
   abstract class PublicationJ[T, R] {

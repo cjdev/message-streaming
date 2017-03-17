@@ -14,14 +14,14 @@ import scala.collection.JavaConverters._
 object Java {
 
   class KinesisSubscriptionJ(config: KinesisConsumerConfig)
-    extends SubscriptionJ {
+    extends SubscriptionJ[Array[Byte]] {
 
-    private val sub: Subscription = makeSubscription(config)
+    private val sub: Subscription[Array[Byte]] = makeSubscription(config)
 
     def mapWithCheckpointing(f: FunctionJ[Array[Byte], Unit]): Unit =
       sub.mapWithCheckpointing(x => f.apply(x))
 
-    def stream(): StreamJ[CheckpointableRecord] =
+    def stream(): StreamJ[Checkpointable[Array[Byte]]] =
       java.util.stream.StreamSupport.stream(sub.stream.toIterable.asJava.spliterator(), false)
   }
 

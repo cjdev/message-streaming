@@ -6,18 +6,18 @@ class AutoCheckpointingTest extends FlatSpec with Matchers {
   behavior of "Map with checkpointing method"
 
   it should "call callbacks when i dequeue the next item" in {
-    val q = new IterableBlockingQueue[CheckpointableRecord]
+    val q = new IterableBlockingQueue[Checkpointable[Array[Byte]]]
     val s = Subscription(q.stream)
     var x1 = false
     var x2 = false
     var x3 = false
-    q.add(CheckpointableRecord("1".getBytes, () => {
+    q.add(Checkpointable[Array[Byte]]("1".getBytes, () => {
       x1 = true
     }))
-    q.add(CheckpointableRecord("2".getBytes, () => {
+    q.add(Checkpointable[Array[Byte]]("2".getBytes, () => {
       x2 = true
     }))
-    q.add(CheckpointableRecord("3".getBytes, () => {
+    q.add(Checkpointable[Array[Byte]]("3".getBytes, () => {
       x3 = true
     }))
     q.done()
