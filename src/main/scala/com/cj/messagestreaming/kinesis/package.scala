@@ -266,6 +266,7 @@ package object kinesis {
     val cfg: KinesisProducerConfiguration = new KinesisProducerConfiguration()
     cfg.setCredentialsProvider(provider)
     region.foreach(cfg.setRegion)
+    cfg.setRateLimit(80)
     new KinesisProducer(cfg)
   }
 
