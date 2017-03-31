@@ -30,6 +30,9 @@ package object messagestreaming {
 
     def x[U >: T](that: Subscription[U]): Subscription[U] =
       Subscription.interlace[U](this, that)
+
+    def map[U](f: T => U): Subscription[U]
+
   }
 
   object Subscription {
@@ -58,6 +61,8 @@ package object messagestreaming {
           callback()
       }
     }
+
+    override def map[U](f: T => U) = StreamSubscription(stream.map(_.map(f)))
   }
 
   case class Checkpointable[+T](data: T, checkpointCallback: CheckpointCallback) {
