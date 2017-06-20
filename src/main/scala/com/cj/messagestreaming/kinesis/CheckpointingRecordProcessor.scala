@@ -48,7 +48,7 @@ class CheckpointingRecordProcessor(q: Queue[Checkpointable[Array[Byte]]], time: 
       checkpointerPromise.complete(Try(checkpointer))
       checkpointIfReady()
     }
-    q.add(Checkpointable[Array[Byte]](record.getData.array(), () => markProcessedRecord()))
+    q.add(Checkpointable[Array[Byte]](record.getData.array(), (_: Unit) => markProcessedRecord()))
 
   }
 

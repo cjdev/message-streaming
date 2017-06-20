@@ -9,11 +9,11 @@ class PackageTest extends FlatSpec with Matchers {
   it should "interlace subscriptions" in {
     // given
     val left: Subscription[Int] =
-      StreamSubscription(Stream(Checkpointable(0), Checkpointable(2)))
+      Subscription(Stream(Checkpointable(0), Checkpointable(2)))
     val right: Subscription[Int] =
-      StreamSubscription(Stream(Checkpointable(1), Checkpointable(3), Checkpointable(5)))
+      Subscription(Stream(Checkpointable(1), Checkpointable(3), Checkpointable(5)))
     val expected: Subscription[Int] =
-      StreamSubscription(
+      Subscription(
         Stream(Checkpointable(0), Checkpointable(1), Checkpointable(2), Checkpointable(3), Checkpointable(5))
       )
 
