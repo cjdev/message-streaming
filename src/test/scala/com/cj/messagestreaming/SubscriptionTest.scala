@@ -11,52 +11,36 @@ class SubscriptionTest extends FlatSpec with Matchers {
 
   behavior of "mapWithCheckpointing"
 
-  it should "call callbacks when i dequeue the next item" in {
-    val q = new IterableBlockingQueue[Checkpointable[Array[Byte]]]
-    val s = Subscription(q.stream)
-    var x1 = false
-    var x2 = false
-    var x3 = false
-    q.add(Checkpointable[Array[Byte]]("1".getBytes, (_: Unit) => {
-      x1 = true
-    }))
-    q.add(Checkpointable[Array[Byte]]("2".getBytes, (_: Unit) => {
-      x2 = true
-    }))
-    q.add(Checkpointable[Array[Byte]]("3".getBytes, (_: Unit) => {
-      x3 = true
-    }))
-    q.done()
-    var counter = 0
+  it should "checkpoint records as they are processed" in {
+    // given
+    var cp1 = false
+    var cp2 = false
+    var cp3 = false
+    var snapshots: List[(Boolean, Boolean, Boolean)] = Nil
+    def snapshot() { snapshots = snapshots :+ (cp1, cp2, cp3) }
+    val sub = Subscription(Stream(
+      Checkpointable({}, _ => cp1 = true),
+      Checkpointable({}, _ => cp2 = true),
+      Checkpointable({}, _ => cp3 = true)
+    ))
 
-    def f() = {
-      val tests =
-        Seq(() => {
-          (x1, x2, x3) should be(false, false, false)
-        }
-          , () => {
-            (x1, x2, x3) should be(true, false, false)
-          }
-          , () => {
-            (x1, x2, x3) should be(true, true, false)
-          }
-        )
-      tests(counter)()
-      counter += 1
-    }
+    // when
+    sub.mapWithCheckpointing(_ => snapshot())
 
-    var i = s.mapWithCheckpointing(_ => {
-      f()
-    })
-
-    (x1, x2, x3) should be(true, true, true)
+    // then
+    snapshots should be(List(
+      (false, false, false),
+      (true, false, false),
+      (true, true, false)
+    ))
+    (cp1, cp2, cp3) should be((true, true, true))
   }
 
-  it should "not checkpoint a record if the consuming function throws" in {
+  it should "not checkpoint a record if the processing function throws" in {
     // given
     var checkpointed: Boolean = false
     var calledConsumer: Boolean = false
-    val sub: Subscription[Unit] = Subscription(Stream(Checkpointable({}, _ => checkpointed = true)))
+    val sub = Subscription(Stream(Checkpointable({}, _ => checkpointed = true)))
     def f(x: Unit): Unit = { calledConsumer = true; throw new RuntimeException }
 
     // when
@@ -67,28 +51,32 @@ class SubscriptionTest extends FlatSpec with Matchers {
     checkpointed should be(false)
   }
 
-  it should "checkpoint a record only after the consuming function returns normally" in {
+  it should "checkpoint a record only after the processing function returns" in {
     // given
     var checkpointed: Boolean = false
-    var calledConsumer: Boolean = false
-    var consumerFinished: Boolean = false
-    val sub: Subscription[Unit] = Subscription(Stream(Checkpointable({}, _ => checkpointed = true)))
-    def f(x: Unit): Unit = { calledConsumer = true ; Thread.sleep(1000); consumerFinished = true }
+    var processorStarted: Boolean = false
+    var processorFinished: Boolean = false
+    val sub = Subscription(Stream(Checkpointable({}, _ => checkpointed = true)))
+    def processor(x: Unit): Unit = {
+      processorStarted = true
+      Thread.sleep(100)
+      processorFinished = true
+    }
 
     // when
-    Future(Try(sub.mapWithCheckpointing(f)))
+    Future(Try(sub.mapWithCheckpointing(processor)))
 
     // then
-    while (!calledConsumer) {
+    while (!processorStarted) {
       checkpointed should be(false)
-      Thread.sleep(100)
+      Thread.sleep(10)
     }
-    while (!consumerFinished) {
+    while (!processorFinished) {
       checkpointed should be(false)
-      Thread.sleep(100)
+      Thread.sleep(10)
     }
-    calledConsumer should be(true)
-    consumerFinished should be(true)
+    processorStarted should be(true)
+    processorFinished should be(true)
     checkpointed should be(true)
   }
 }

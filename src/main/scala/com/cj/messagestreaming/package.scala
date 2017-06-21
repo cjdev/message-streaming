@@ -20,7 +20,7 @@ package object messagestreaming {
   sealed abstract class Subscription[+T] extends Streamable[Checkpointable[T]] {
 
     def mapWithCheckpointing(f: T => Unit): Unit =
-      Subscription.mapWithCheckpointing(this)(f)
+      Subscription.process(this)(f)
 
     def x[U >: T](that: Subscription[U]): Subscription[U] =
       Subscription.interlace[U](this, that)
@@ -39,7 +39,7 @@ package object messagestreaming {
     def map[T, U](sub: Subscription[T])(f: T => U): Subscription[U] =
       apply(sub.stream.map(_.map(f)))
 
-    def mapWithCheckpointing[T](sub: Subscription[T])(f: T => Unit): Unit =
+    def process[T](sub: Subscription[T])(f: T => Unit): Unit =
       sub.stream.foreach { case Checkpointable(data, callback) => f(data); callback() }
 
     def interlace[T](left: Subscription[T], right: Subscription[T]): Subscription[T] =
