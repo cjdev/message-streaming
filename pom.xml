@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.cj</groupId>
-    <artifactId>message-streaming</artifactId>
+    <artifactId>message-streaming_2.11</artifactId>
     <version>1.9-SNAPSHOT</version>
 
     <build>
