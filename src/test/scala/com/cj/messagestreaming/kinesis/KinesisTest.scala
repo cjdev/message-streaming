@@ -1,75 +1,75 @@
 package com.cj.messagestreaming.kinesis
 
 import java.nio.ByteBuffer
+import java.util.concurrent.{Executor, TimeUnit}
 
 import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput
 import com.amazonaws.services.kinesis.model.Record
-import com.amazonaws.services.kinesis.producer.KinesisProducer
-import org.hamcrest.Matchers._
-import org.jmock.lib.legacy.ClassImposteriser
-import org.jmock.{AbstractExpectations, Mockery}
+import com.amazonaws.services.kinesis.producer.{KinesisProducer, UserRecordResult}
+import com.google.common.util.concurrent.ListenableFuture
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
 
 class KinesisTest extends FlatSpec with Matchers {
 
-  val context = new Mockery() {
-    {
-      setImposteriser(ClassImposteriser.INSTANCE)
-    }
-  }
+  val messagesToSend: List[Array[Byte]] =
+    List(
+      "message 1".getBytes(),
+      "message 2".getBytes(),
+      "message 3".getBytes()
+    )
 
-  val streamName = "myStream"
-
-  val dataToPublish = List(
-    "message 1".getBytes(),
-    "message 2".getBytes(),
-    "message 3".getBytes()
-  )
-
-  val recordsToSend: List[Record] = dataToPublish.map((bytes) => {
-    val record = new Record
-    record.setData(ByteBuffer.wrap(bytes))
-    record
-  })
-
-
-  "Kinesis" should "put things in the stream when new records are processed" in {
+  "subscribe" should "put things in the stream when new records are processed" in {
     //given
-    val (factory, sub) = subscribe()
+    val (factory, sub) = subscribe(r => r.getData.array)
     val stream = sub.stream
     val checkpointer = new StubCheckpointer()
+    val recordsToSend: List[Record] =
+      messagesToSend.map { bytes =>
+        val record = new Record
+        record.setData(ByteBuffer.wrap(bytes))
+        record
+      }
+
     //when
-    factory.createProcessor().processRecords(new ProcessRecordsInput().withRecords(recordsToSend.asJava).withCheckpointer(checkpointer))
+    factory.createProcessor().processRecords(
+      new ProcessRecordsInput()
+        .withRecords(recordsToSend.asJava)
+        .withCheckpointer(checkpointer)
+    )
 
     //then
-    dataToPublish.zip(stream).foreach[Unit]({
-      case (x, y) => x should be(y.data)
-    })
+    messagesToSend.zip(stream).foreach({ case (x, y) => x should be(y.data)})
   }
 
-  def expectMessagesToBeSent(dataToPublish: List[Array[Byte]], mockClient: KinesisProducer) = {
-    context.checking(new AbstractExpectations {
-      dataToPublish.foreach((data) =>
-        oneOf(mockClient).addUserRecord(
-          `with`(streamName),
-          `with`(any(classOf[String])),
-          `with`(ByteBuffer.wrap(data))))
-    })
-  }
-
-  "Kinesis" should "publish" in {
+  "produce" should "use the provided kinesis producer and stream name" in {
     //given
-    val mockClient = context.mock(classOf[KinesisProducer])
-    expectMessagesToBeSent(dataToPublish, mockClient)
-
-    val publish = com.cj.messagestreaming.kinesis.produce(streamName, mockClient)
+    val streamName = "myStream"
+    var sentMessages: List[Array[Byte]] = Nil
+    val stubProducer: KinesisProducer = new KinesisProducer {
+      override def addUserRecord(
+                                  stream: String,
+                                  partitionKey: String,
+                                  data: ByteBuffer
+                                ): ListenableFuture[UserRecordResult] = {
+        if (stream == streamName) sentMessages = sentMessages :+ data.array()
+        new ListenableFuture[UserRecordResult] {
+          def addListener(runnable: Runnable, executor: Executor): Unit = {}
+          def cancel(b: Boolean): Boolean = false
+          def isCancelled: Boolean = false
+          def isDone: Boolean = true
+          def get(): UserRecordResult = null
+          def get(l: Long, timeUnit: TimeUnit): UserRecordResult = null
+        }
+      }
+    }
+    val publish = produce(streamName, stubProducer)
 
     //when
-    dataToPublish.foreach(publish)
+    messagesToSend.foreach(publish)
 
     //then
-    context.assertIsSatisfied()
+    sentMessages should be(messagesToSend)
   }
 }

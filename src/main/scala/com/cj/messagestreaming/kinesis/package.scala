@@ -184,32 +184,45 @@ package object kinesis {
       def apply(t: T): Future[PublishResult] = producer(serialize(t))
     }
 
-  def makeSubscription(config: KinesisConsumerConfig): Subscription[Array[Byte]] = {
+  def makeRecordSubscription(config: KinesisConsumerConfig): Subscription[Record] =
+    makeSubscription(config, identity)
+
+  def makeSubscription(config: KinesisConsumerConfig): Subscription[Array[Byte]] =
+    makeSubscription(config, record => record.getData.array)
+
+  def makeSubscription[T](
+                           config: KinesisConsumerConfig,
+                           read: Record => T
+                         ): Subscription[T] = {
+
     val provider: AWSCredentialsProvider = {
       for {
         a <- config.accessKeyId
         s <- config.secretKey
       } yield new AWSStaticCredentialsProvider(new BasicAWSCredentials(a, s))
     }.getOrElse(new DefaultAWSCredentialsProviderChain)
+
     val kinesisConfig = new KinesisClientLibConfiguration(
       config.applicationName,
       config.streamName,
       provider,
       config.workerId
     ).withInitialPositionInStream(config.initialPositionInStream)
+
     config.region.foreach(kinesisConfig.withRegionName)
 
-    val (recordProcessorFactory, sub) = subscribe()
+    val (recordProcessorFactory, sub) = subscribe(read)
+
     val worker = new Worker.Builder()
       .recordProcessorFactory(recordProcessorFactory)
       .config(kinesisConfig).build()
 
-    Future {
-      Try(worker.run())
-    }.onComplete({
-      case Success(s) => logger.error(s"Disaster strikes! Unexpected worker completion. Message: $s")
-      case Failure(e) => logger.error(s"Disaster strikes! The worker has terminated abnormally. Error: $e")
-    })
+    Future(Try(worker.run())).onComplete {
+      case Success(_) =>
+        logger.error("Disaster strikes! Unexpected worker completion!")
+      case Failure(e) =>
+        logger.error("Disaster strikes! Unexpected worker termination!", e)
+    }
 
     sub
   }
@@ -257,20 +270,26 @@ package object kinesis {
                                              secretKey: Option[String],
                                              region: Option[String]
                                            ): KinesisProducer = {
+
     val provider = {
       for {
         a <- accessKeyId
         s <- secretKey
       } yield new AWSStaticCredentialsProvider(new BasicAWSCredentials(a, s))
     }.getOrElse(new DefaultAWSCredentialsProviderChain)
+
     val cfg: KinesisProducerConfiguration = new KinesisProducerConfiguration()
+
     cfg.setCredentialsProvider(provider)
     region.foreach(cfg.setRegion)
     cfg.setRateLimit(80)
+
     new KinesisProducer(cfg)
   }
 
-  protected[kinesis] def subscribe(): (IRecordProcessorFactory, Subscription[Array[Byte]]) = {
+  protected[kinesis] def subscribe[T](read: Record => T):
+  (IRecordProcessorFactory, Subscription[T]) = {
+
     var mostRecentRecordProcessed: Record = null
     var secondMostRecentRecordProcessed: Record = null
 
@@ -279,11 +298,11 @@ package object kinesis {
       mostRecentRecordProcessed = record
     }
 
-    val q = new IterableBlockingQueue[Checkpointable[Array[Byte]]]
+    val q = new IterableBlockingQueue[Checkpointable[T]]
 
     val factory = new IRecordProcessorFactory {
       override def createProcessor(): IRecordProcessor =
-        new CheckpointingRecordProcessor(q)
+        new CheckpointingRecordProcessor(queue = q, readRecord = read)
     }
 
     (factory, Subscription(q.stream))

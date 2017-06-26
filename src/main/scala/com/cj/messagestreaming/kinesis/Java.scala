@@ -5,6 +5,7 @@ import java.util.concurrent.{TimeUnit, Future => FutureJ}
 import java.util.function.{Function => FunctionJ}
 import java.util.stream.{Stream => StreamJ}
 
+import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{KinesisProducer, UserRecordResult}
 import com.cj.messagestreaming.Java._
 import com.cj.messagestreaming._
@@ -13,16 +14,19 @@ import scala.collection.JavaConverters._
 
 object Java {
 
-  class KinesisSubscriptionJ(config: KinesisConsumerConfig)
-    extends SubscriptionJ[Array[Byte]] {
+  class KinesisSubscriptionJ[T](
+                                 config: KinesisConsumerConfig,
+                                 read: FunctionJ[Record, T]
+                               ) extends SubscriptionJ[T] {
 
-    private val sub: Subscription[Array[Byte]] = makeSubscription(config)
+    private val sub: Subscription[T] =
+      makeSubscription(config, r => read.apply(r))
 
-    def mapWithCheckpointing(f: FunctionJ[Array[Byte], Unit]): Unit =
+    def mapWithCheckpointing(f: FunctionJ[T, Unit]): Unit =
       sub.mapWithCheckpointing(x => f.apply(x))
 
-    def stream(): StreamJ[Checkpointable[Array[Byte]]] =
-      java.util.stream.StreamSupport.stream(sub.stream.toIterable.asJava.spliterator(), false)
+    def stream(): StreamJ[Checkpointable[T]] =
+      java.util.stream.StreamSupport.stream(sub.stream.asJava.spliterator(), false)
   }
 
   class KinesisPublicationJ[T](
