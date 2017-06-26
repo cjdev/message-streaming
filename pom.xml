@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>message-streaming_2.11</artifactId>
-    <version>1.9-SNAPSHOT</version>
+    <version>1.9</version>
 
     <build>
         <sourceDirectory>src/main/scala</sourceDirectory>
