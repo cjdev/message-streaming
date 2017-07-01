@@ -4,165 +4,19 @@ import java.nio.ByteBuffer
 
 import com.amazonaws.auth.{AWSCredentialsProvider, AWSStaticCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{InitialPositionInStream, KinesisClientLibConfiguration, Worker}
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
 import com.amazonaws.services.kinesis.model.Record
-import com.amazonaws.services.kinesis.producer.{Attempt, KinesisProducer, KinesisProducerConfiguration, UserRecordResult}
+import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration}
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
-import scala.collection.JavaConversions._
 
 package object kinesis {
 
   private lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
-
-  case class PublishAttempt(
-                             getDelay: Int,
-                             getDuration: Int,
-                             getErrorMessage: String,
-                             getErrorCode: String,
-                             isSuccessful: Boolean
-                           )
-
-  object PublishAttempt {
-    def fromKinesis(attempt: Attempt): PublishAttempt = PublishAttempt(
-      getDelay = attempt.getDelay,
-      getDuration = attempt.getDuration,
-      getErrorMessage = attempt.getErrorMessage,
-      getErrorCode = attempt.getErrorCode,
-      isSuccessful = attempt.isSuccessful
-    )
-  }
-
-  case class PublishResult(
-                            getAttempts: List[PublishAttempt],
-                            getSequenceNumber: String,
-                            getShardId: String,
-                            isSuccessful: Boolean
-                          )
-
-  object PublishResult {
-    def fromKinesis(urr: UserRecordResult): PublishResult = PublishResult(
-      getAttempts = urr.getAttempts.map(PublishAttempt.fromKinesis).toList,
-      getSequenceNumber = urr.getSequenceNumber,
-      getShardId = urr.getShardId,
-      isSuccessful = urr.isSuccessful
-    )
-  }
-
-  case class KinesisProducerConfig private[kinesis](
-                                                     accessKeyId: Option[String],
-                                                     secretKey: Option[String],
-                                                     region: Option[String],
-                                                     streamName: String
-                                                   )
-
-  object KinesisProducerConfig {
-    def apply(streamName: String): KinesisProducerConfig = {
-      KinesisProducerConfig(None, None, None, streamName)
-    }
-
-    def apply(
-               accessKeyId: String,
-               secretKey: String,
-               region: String,
-               streamName: String
-             ): KinesisProducerConfig = {
-      KinesisProducerConfig(
-        Some(accessKeyId),
-        Some(secretKey),
-        Some(region),
-        streamName
-      )
-    }
-  }
-
-  case class KinesisConsumerConfig private[kinesis](
-                                                     accessKeyId: Option[String],
-                                                     secretKey: Option[String],
-                                                     region: Option[String],
-                                                     streamName: String,
-                                                     applicationName: String,
-                                                     workerId: String,
-                                                     initialPositionInStream: InitialPositionInStream
-                                                   )
-
-  object KinesisConsumerConfig {
-    def apply(
-               streamName: String,
-               applicationName: String,
-               workerId: String
-             ): KinesisConsumerConfig = {
-      KinesisConsumerConfig(
-        accessKeyId = None,
-        secretKey = None,
-        region = None,
-        streamName = streamName,
-        applicationName = applicationName,
-        workerId = workerId,
-        initialPositionInStream = InitialPositionInStream.LATEST
-      )
-    }
-
-    def apply(
-               streamName: String,
-               applicationName: String,
-               workerId: String,
-               initialPositionInStream: InitialPositionInStream
-             ): KinesisConsumerConfig = {
-      KinesisConsumerConfig(
-        accessKeyId = None,
-        secretKey = None,
-        region = None,
-        streamName = streamName,
-        applicationName = applicationName,
-        workerId = workerId,
-        initialPositionInStream = initialPositionInStream
-      )
-    }
-
-    def apply(
-               accessKeyId: String,
-               secretKey: String,
-               region: String,
-               streamName: String,
-               applicationName: String,
-               workerId: String
-             ): KinesisConsumerConfig = {
-      KinesisConsumerConfig(
-        accessKeyId = Some(accessKeyId),
-        secretKey = Some(secretKey),
-        region = Some(region),
-        streamName = streamName,
-        applicationName = applicationName,
-        workerId = workerId,
-        initialPositionInStream = InitialPositionInStream.LATEST
-      )
-    }
-
-    def apply(
-               accessKeyId: String,
-               secretKey: String,
-               region: String,
-               streamName: String,
-               applicationName: String,
-               workerId: String,
-               initialPositionInStream: InitialPositionInStream
-             ): KinesisConsumerConfig = {
-      KinesisConsumerConfig(
-        accessKeyId = Some(accessKeyId),
-        secretKey = Some(secretKey),
-        region = Some(region),
-        streamName = streamName,
-        applicationName = applicationName,
-        workerId = workerId,
-        initialPositionInStream = initialPositionInStream
-      )
-    }
-  }
 
   def makePublication[T](
                           config: KinesisProducerConfig,

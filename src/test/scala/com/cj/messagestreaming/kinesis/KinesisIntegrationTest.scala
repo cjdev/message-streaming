@@ -67,7 +67,6 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
 
     val consumer = makeSubscription(consumerConfig, r => r.getData.array)
 
-
     val f: Array[Byte] => Unit = x => {
       recievedRecords.enqueue(x)
       numRecieved += 1
