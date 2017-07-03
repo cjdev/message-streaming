@@ -19,6 +19,8 @@
         <amazon-kinesis-client_version>1.7.6</amazon-kinesis-client_version>
         <amazon-kinesis-producer_version>0.12.5</amazon-kinesis-producer_version>
         <scalatest_version>3.0.3</scalatest_version>
+        <commons-logging_version>1.2</commons-logging_version>
+        <aws-java-sdk-core_version>1.11.151</aws-java-sdk-core_version>
     </properties>
 
     <build>
@@ -172,13 +174,13 @@
             <dependency>
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-core</artifactId>
-                <version>1.11.151</version>
+                <version>${aws-java-sdk-core_version}</version>
             </dependency>
 
             <dependency>
                 <groupId>commons-logging</groupId>
                 <artifactId>commons-logging</artifactId>
-                <version>1.2</version>
+                <version>${commons-logging_version}</version>
             </dependency>
 
         </dependencies>
