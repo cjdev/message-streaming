@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>message-streaming_2.11</artifactId>
-    <version>1.9.3</version>
+    <version>1.9.4</version>
 
     <properties>
         <scala-major_version>2.11</scala-major_version>
@@ -140,6 +140,12 @@
     </distributionManagement>
 
     <dependencies>
+
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>${scala-minor_version}</version>
+        </dependency>
 
         <dependency>
             <groupId>com.amazonaws</groupId>
