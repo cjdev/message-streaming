@@ -61,6 +61,7 @@ class CheckpointingRecordProcessor[A](
       Await.result(done.last, Duration.Zero)() //we're awaiting a future that is already complete
     }
     checkpointers = remaining
+    logger.info(s"Checkpoint queue length: ${checkpointers.length}")
     nextCheckpointTime = time + checkpointInterval
   }
 
