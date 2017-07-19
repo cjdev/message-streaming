@@ -71,6 +71,9 @@ package object kinesis {
       .recordProcessorFactory(recordProcessorFactory)
       .config(kinesisConfig).build()
 
+    // TODO: If the worker shuts down, the associated subscription blocks forever
+    // TODO: Should we notify the client if this happens?
+    // TODO: Should we try to resurrect the worker if this happens?
     Future(Try(worker.run())).onComplete {
       case Success(_) =>
         logger.error("Disaster strikes! Unexpected worker completion!")
