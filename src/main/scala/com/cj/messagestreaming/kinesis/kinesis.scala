@@ -44,7 +44,15 @@ case class KinesisProducerConfig private[kinesis](
                                                    secretKey: Option[String],
                                                    region: Option[String],
                                                    streamName: String
-                                                 )
+                                                 ) {
+  def summary: String =
+    s"""KinesisProducerConfig: $this
+       |    accessKeyId: $accessKeyId
+       |    secretKey:   ****
+       |    region:      $region
+       |    streamName:  $streamName
+       |""".stripMargin
+}
 
 object KinesisProducerConfig {
   def apply(streamName: String): KinesisProducerConfig = {
@@ -74,7 +82,17 @@ case class KinesisConsumerConfig private[kinesis](
                                                    applicationName: String,
                                                    workerId: String,
                                                    initialPositionInStream: InitialPositionInStream
-                                                 )
+                                                 ) {
+  def summary: String =
+    s"""KinesisConsumerConfig: $this
+       |    accessKeyId: $accessKeyId
+       |    secretKey:   ****
+       |    region:      $region
+       |    streamName:  $streamName
+       |    applicationName: $applicationName
+       |    initialPositionInStream: $initialPositionInStream
+       |""".stripMargin
+}
 
 object KinesisConsumerConfig {
   def apply(
