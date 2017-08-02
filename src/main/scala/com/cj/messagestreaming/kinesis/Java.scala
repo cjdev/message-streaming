@@ -24,9 +24,6 @@ object Java {
 
     def mapWithCheckpointing(f: FunctionJ[T, Unit]): Unit =
       sub.mapWithCheckpointing(x => f.apply(x))
-
-    def stream(): StreamJ[Checkpointable[T]] =
-      java.util.stream.StreamSupport.stream(sub.stream.asJava.spliterator(), false)
   }
 
   class KinesisPublicationJ[T](

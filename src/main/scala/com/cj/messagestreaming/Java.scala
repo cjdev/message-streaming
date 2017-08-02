@@ -9,8 +9,6 @@ object Java {
   abstract class SubscriptionJ[T] {
 
     def mapWithCheckpointing(f: FunctionJ[T, Unit]): Unit
-
-    def stream(): StreamJ[Checkpointable[T]]
   }
 
   abstract class PublicationJ[T, R] {

@@ -9,21 +9,14 @@ package object messagestreaming {
     def done(): Unit
   }
 
-  trait Streamable[+T] {
-    def stream: Stream[T]
-  }
-
   trait Closable {
     def close(): Unit
   }
 
-  sealed abstract class Subscription[+T] extends Streamable[Checkpointable[T]] {
+  sealed abstract class Subscription[+T] extends Iterable[Checkpointable[T]] {
 
     def mapWithCheckpointing(f: T => Unit): Unit =
       Subscription.process(this)(f)
-
-    def x[U >: T](that: Subscription[U]): Subscription[U] =
-      Subscription.interlace[U](this, that)
 
     def map[U](f: T => U): Subscription[U] =
       Subscription.map(this)(f)
@@ -31,28 +24,17 @@ package object messagestreaming {
 
   object Subscription {
 
-    def apply[T](s: Stream[Checkpointable[T]]): Subscription[T] =
+    def apply[T](s: Iterator[Checkpointable[T]]): Subscription[T] =
       new Subscription[T] {
-        def stream: Stream[Checkpointable[T]] = s
+        def iterator: Iterator[Checkpointable[T]] = s
       }
 
     def map[T, U](sub: Subscription[T])(f: T => U): Subscription[U] =
-      apply(sub.stream.map(_.map(f)))
+      apply(sub.iterator.map(_.map(f)))
 
     def process[T](sub: Subscription[T])(f: T => Unit): Unit =
-      sub.stream.foreach { case Checkpointable(data, callback) => f(data); callback() }
+      sub.iterator.foreach { case Checkpointable(data, callback) => f(data); callback() }
 
-    def interlace[T](left: Subscription[T], right: Subscription[T]): Subscription[T] =
-      (left.stream.isEmpty, right.stream.isEmpty) match {
-        case (true, true) => Subscription(Stream.empty)
-        case (true, false) => right
-        case (false, true) => left
-        case (false, false) =>
-          Subscription(left.stream.head +: right.stream.head +: interlace(
-            Subscription(left.stream.tail),
-            Subscription(right.stream.tail)
-          ).stream)
-      }
   }
 
   case class Checkpointable[+T](data: T, checkpointCallback: CheckpointCallback) {

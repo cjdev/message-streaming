@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
+import scala.collection.JavaConverters._
 
 package object kinesis {
 
@@ -162,6 +163,6 @@ package object kinesis {
         new CheckpointingRecordProcessor(queue = q, readRecord = read)
     }
 
-    (factory, Subscription(q.stream))
+    (factory, Subscription(q.iterator.asScala))
   }
 }

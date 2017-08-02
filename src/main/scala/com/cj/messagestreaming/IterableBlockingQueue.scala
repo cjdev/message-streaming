@@ -3,7 +3,7 @@ package com.cj.messagestreaming
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class IterableBlockingQueue[T]
-  extends java.lang.Iterable[T] with Queue[T] with Streamable[T] {
+  extends java.lang.Iterable[T] with Queue[T] {
 
   private val queue: java.util.Queue[T] = new ConcurrentLinkedQueue[T]
 
@@ -39,13 +39,4 @@ class IterableBlockingQueue[T]
     override def remove(): Unit = queue.remove
   }
 
-  override def stream: Stream[T] = iteratorStream(iterator)
-
-  private def iteratorStream[A](i: java.util.Iterator[A]): Stream[A] =
-    new Stream[A] {
-      override lazy val head: A = { i.hasNext; i.next }
-      override lazy val tail: Stream[A] = { head; iteratorStream(i) }
-      override def tailDefined: Boolean = false
-      override def isEmpty: Boolean = !i.hasNext
-    }
 }
