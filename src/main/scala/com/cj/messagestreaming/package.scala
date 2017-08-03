@@ -1,6 +1,8 @@
 package com.cj
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.duration.Duration
+import scala.util.{Failure, Success}
 
 package object messagestreaming {
 
@@ -60,5 +62,55 @@ package object messagestreaming {
 
   type CheckpointCallback = Unit => Unit
 
-  trait Publication[-T, +R] extends (T => Future[R]) with Closable
+  trait Publication[-T, +R] extends (T => Future[R]) with Closable { self =>
+
+    final def premap[T1](f: T1 => T): Publication[T1, R] =
+      new Publication[T1, R] {
+        def apply(v1: T1): Future[R] = self(f(v1))
+        def close(): Unit = self.close()
+      }
+
+    final def map[R1](f: R => R1)
+                     (implicit ec: ExecutionContext): Publication[T, R1] =
+      new Publication[T, R1] {
+        def apply(v1: T): Future[R1] = self(v1).map(f)
+        def close(): Unit = self.close()
+      }
+  }
+
+  def retry[T, R](
+                   publication: Publication[T, R],
+                   successCheck: R => Boolean,
+                   initialDelay: Duration,
+                   increment: Duration => Duration,
+                   maxRetries: Long
+                 )(implicit ec: ExecutionContext): Publication[T, R] =
+    new Publication[T, R] {
+
+      def apply(v1: T): Future[R] = {
+
+        val p: Promise[R] = Promise[R]()
+
+        // IDK how well this will stand up to the JVM's call stack limit
+        def helper(retries: Long, delay: Duration): Unit = {
+
+          publication(v1).onComplete({
+            case Success(r) if successCheck(r) =>
+              p.success(r)
+            case Success(r) if !successCheck(r) && retries == 0 =>
+              p.success(r)
+            case Failure(e) if retries == 0 =>
+              p.failure(e)
+            case _ =>
+              helper(retries - 1, increment(delay))
+          })
+        }
+
+        Future { helper(maxRetries, initialDelay) }
+
+        p.future
+      }
+
+      def close(): Unit = publication.close()
+    }
 }
