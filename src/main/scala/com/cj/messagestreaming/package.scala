@@ -1,8 +1,8 @@
 package com.cj
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 package object messagestreaming {
 
@@ -89,26 +89,17 @@ package object messagestreaming {
 
       def apply(v1: T): Future[R] = {
 
-        val p: Promise[R] = Promise[R]()
+        def helper(retries: Long, delay: Duration): Try[R] = {
 
-        // IDK how well this will stand up to the JVM's call stack limit
-        def helper(retries: Long, delay: Duration): Unit = {
-
-          publication(v1).onComplete({
-            case Success(r) if successCheck(r) =>
-              p.success(r)
-            case Success(r) if !successCheck(r) && retries == 0 =>
-              p.success(r)
-            case Failure(e) if retries == 0 =>
-              p.failure(e)
-            case _ =>
-              helper(retries - 1, increment(delay))
-          })
+          Try(Await.result(publication(v1), Duration.Inf)) match {
+            case s@Success(r) if successCheck(r) => s
+            case s@Success(r) if !successCheck(r) && retries <= 0 => s
+            case f@Failure(e) if retries <= 0 => f
+            case _ => helper(retries - 1, increment(delay))
+          }
         }
 
-        Future { helper(maxRetries, initialDelay) }
-
-        p.future
+        Future { helper(maxRetries, initialDelay).get }
       }
 
       def close(): Unit = publication.close()
