@@ -3,6 +3,7 @@ package kinesis
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream
 import com.amazonaws.services.kinesis.producer.{Attempt, UserRecordResult}
+
 import scala.collection.JavaConversions._
 
 case class PublishAttempt(
@@ -55,23 +56,15 @@ case class KinesisProducerConfig private[kinesis](
 }
 
 object KinesisProducerConfig {
-  def apply(streamName: String): KinesisProducerConfig = {
-    KinesisProducerConfig(None, None, None, streamName)
-  }
 
   def apply(
-             accessKeyId: String,
-             secretKey: String,
-             region: String,
-             streamName: String
-           ): KinesisProducerConfig = {
-    KinesisProducerConfig(
-      Some(accessKeyId),
-      Some(secretKey),
-      Some(region),
-      streamName
-    )
-  }
+             streamName: String,
+             accessKeyId: String = null,
+             secretKey: String = null,
+             region: String = null
+           ): KinesisProducerConfig = KinesisProducerConfig(
+    Option(accessKeyId), Option(secretKey), Option(region), streamName
+  )
 }
 
 case class KinesisConsumerConfig private[kinesis](
@@ -89,81 +82,24 @@ case class KinesisConsumerConfig private[kinesis](
        |    secretKey:   ****
        |    region:      $region
        |    streamName:  $streamName
+       |    workerId:    $workerId
        |    applicationName: $applicationName
        |    initialPositionInStream: $initialPositionInStream
        |""".stripMargin
 }
 
 object KinesisConsumerConfig {
-  def apply(
-             streamName: String,
-             applicationName: String,
-             workerId: String
-           ): KinesisConsumerConfig = {
-    KinesisConsumerConfig(
-      accessKeyId = None,
-      secretKey = None,
-      region = None,
-      streamName = streamName,
-      applicationName = applicationName,
-      workerId = workerId,
-      initialPositionInStream = InitialPositionInStream.LATEST
-    )
-  }
 
   def apply(
              streamName: String,
              applicationName: String,
              workerId: String,
-             initialPositionInStream: InitialPositionInStream
-           ): KinesisConsumerConfig = {
-    KinesisConsumerConfig(
-      accessKeyId = None,
-      secretKey = None,
-      region = None,
-      streamName = streamName,
-      applicationName = applicationName,
-      workerId = workerId,
-      initialPositionInStream = initialPositionInStream
-    )
-  }
-
-  def apply(
-             accessKeyId: String,
-             secretKey: String,
-             region: String,
-             streamName: String,
-             applicationName: String,
-             workerId: String
-           ): KinesisConsumerConfig = {
-    KinesisConsumerConfig(
-      accessKeyId = Some(accessKeyId),
-      secretKey = Some(secretKey),
-      region = Some(region),
-      streamName = streamName,
-      applicationName = applicationName,
-      workerId = workerId,
-      initialPositionInStream = InitialPositionInStream.LATEST
-    )
-  }
-
-  def apply(
-             accessKeyId: String,
-             secretKey: String,
-             region: String,
-             streamName: String,
-             applicationName: String,
-             workerId: String,
-             initialPositionInStream: InitialPositionInStream
-           ): KinesisConsumerConfig = {
-    KinesisConsumerConfig(
-      accessKeyId = Some(accessKeyId),
-      secretKey = Some(secretKey),
-      region = Some(region),
-      streamName = streamName,
-      applicationName = applicationName,
-      workerId = workerId,
-      initialPositionInStream = initialPositionInStream
-    )
-  }
+             accessKeyId: String = null,
+             secretKey: String = null,
+             region: String = null,
+             initialPositionInStream: InitialPositionInStream = InitialPositionInStream.LATEST
+           ): KinesisConsumerConfig = KinesisConsumerConfig(
+    Option(accessKeyId), Option(secretKey), Option(region),
+    streamName, applicationName, workerId, initialPositionInStream
+  )
 }
