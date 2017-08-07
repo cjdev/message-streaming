@@ -78,30 +78,36 @@ package object messagestreaming {
       }
   }
 
-  def retry[T, R](
-                   publication: Publication[T, R],
-                   successCheck: R => Boolean,
-                   initialDelay: Duration,
-                   increment: Duration => Duration,
-                   maxRetries: Long
-                 )(implicit ec: ExecutionContext): Publication[T, R] =
-    new Publication[T, R] {
+  object Publication {
 
-      def apply(v1: T): Future[R] = {
+    class RetryFailure[R](val response: R) extends Throwable
 
-        def helper(retries: Long, delay: Duration): Try[R] = {
+    def retry[T, R](
+                     publication: Publication[T, R],
+                     successCheck: R => Boolean,
+                     responseTimeout: Duration,
+                     initialDelay: Duration,
+                     increment: Duration => Duration,
+                     maxRetries: Long
+                   )(implicit ec: ExecutionContext): Publication[T, R] =
+      new Publication[T, R] {
 
-          Try(Await.result(publication(v1), Duration.Inf)) match {
-            case s@Success(r) if successCheck(r) => s
-            case s@Success(r) if !successCheck(r) && retries <= 0 => s
-            case f@Failure(e) if retries <= 0 => f
-            case _ => helper(retries - 1, increment(delay))
+        def apply(v1: T): Future[R] = {
+
+          def helper(retries: Long, delay: Duration): Try[R] = {
+
+            Try(Await.result(publication(v1), responseTimeout)) match {
+              case s@Success(r) if successCheck(r) => s
+              case s@Success(r) if retries <= 0 => Failure(new RetryFailure(r))
+              case f@Failure(e) if retries <= 0 => f
+              case _ => helper(retries - 1, increment(delay))
+            }
           }
+
+          Future(helper(maxRetries, initialDelay).get)
         }
 
-        Future { helper(maxRetries, initialDelay).get }
+        def close(): Unit = publication.close()
       }
-
-      def close(): Unit = publication.close()
-    }
+  }
 }

@@ -28,7 +28,14 @@ class PublicationTest extends FlatSpec with Matchers {
         }
       }
     }
-    val transformed = retry(original, identity[Boolean], 0 seconds, identity, 100)
+    val transformed = Publication.retry(
+      publication = original,
+      successCheck = identity[Boolean],
+      responseTimeout = 10 seconds,
+      initialDelay = 0 seconds,
+      increment = _ + (1 second),
+      maxRetries = 100
+    )
 
     // when
     val res1 = original(message)
@@ -52,7 +59,8 @@ class PublicationTest extends FlatSpec with Matchers {
       def apply(v1: String): Future[Boolean] = Future.successful(true)
       def close(): Unit = closed = true
     }
-    val transformed = retry(original, identity[Boolean], 0 seconds, identity, 0)
+    val transformed =
+      Publication.retry(original, identity[Boolean], 0 seconds, 0 seconds, identity, 0)
 
     // when
     transformed.close()
