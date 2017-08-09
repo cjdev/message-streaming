@@ -21,7 +21,12 @@ node("build130") {
       }
 
       stage('Maven Deploy') {
-        sh "mvn deploy -DskipTests"
+        try {
+          sh "mvn deploy -DskipTests"
+        } catch (err) {
+          echo err
+          currentBuild.result = "UNSTABLE"
+        }
       }
 
     }
