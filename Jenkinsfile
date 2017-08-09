@@ -24,7 +24,7 @@ node("build130") {
         try {
           sh "mvn deploy -DskipTests"
         } catch (err) {
-          echo err
+          echo "$err"
           currentBuild.result = "UNSTABLE"
         }
       }
