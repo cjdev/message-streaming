@@ -46,7 +46,7 @@ package object messagestreaming {
           Checkpointable(newData, _ => { checkpointCallback(); newCallback() })
       }
 
-    def runCheckpointable: T = { checkpointCallback(); data }
+    def run: T = { checkpointCallback(); data }
   }
 
   object Checkpointable {
@@ -60,6 +60,10 @@ package object messagestreaming {
 
   sealed trait Publication[-T, +R] extends (T => Future[R]) with Closable {
 
+    final def bind(tf: Future[T])
+                  (implicit ec: ExecutionContext): Future[R] =
+      tf.flatMap(apply)
+
     final def premap[T1](f: T1 => T): Publication[T1, R] =
       Publication(t1 => this.apply(f(t1)), this.close())
 
@@ -70,6 +74,11 @@ package object messagestreaming {
 
   object Publication {
 
+    /**
+      * Create a [[Publication]] with the following guarantees:
+      *   * `apply` will not throw (exceptions pushed to the returned [[Future]]),
+      *   * `close` will have an effect only the first time is is used.
+      */
     def apply[T, R](send: T => Future[R], onClose: => Unit): Publication[T, R] =
       new Publication[T, R] {
 
@@ -81,6 +90,11 @@ package object messagestreaming {
         def close(): Unit = runClose
       }
 
+    /**
+      * Create a [[Publication]] that produces completed [[Future]]s.
+      *
+      * You should not reuse the supplied publication.
+      */
     def blocking[T, R](responseTimeout: Duration)
                       (publication: Publication[T, R]): Publication[T, R] = {
 
@@ -89,6 +103,12 @@ package object messagestreaming {
       Publication(block, publication.close())
     }
 
+    /**
+      * Create a [[Publication]] that retries on failures, subject to the
+      * parameters you supply.
+      *
+      * You should not reuse the supplied publication.
+      */
     def retrying[T, R](
                         maxRetries: Long,
                         responseTimeout: Duration = 5 seconds,
@@ -96,7 +116,7 @@ package object messagestreaming {
                         incrementDelay: Duration => Duration = 2 * _,
                         maxDelay: Duration = 30 seconds
                       )(publication: Publication[T, R])
-                      (implicit ec: ExecutionContext): Publication[T, R] = {
+                       (implicit ec: ExecutionContext): Publication[T, R] = {
 
       def retry(v1: T, retries: Long, delay: Duration): Try[R] =
         Try(Await.result(publication(v1), responseTimeout)) match {
@@ -112,6 +132,22 @@ package object messagestreaming {
 
       Publication(begin, publication.close())
     }
-  }
 
+    /**
+      * Creates a [[Publication]] that combines the effects of the supplied
+      * functions. Useful for adding arbitrary effects, for example logging.
+      *
+      * You should not reuse the supplied publication.
+      */
+    def decorate[T, R, T1, R1](
+                                preprocess: T1 => T,
+                                postprocess: T1 => R => R1
+                              )(publication: Publication[T, R])
+                               (implicit ec: ExecutionContext): Publication[T1, R1] = {
+
+      def deco = (t1: T1) => publication(preprocess(t1)).map(postprocess(t1))
+
+      Publication(deco, publication.close())
+    }
+  }
 }
