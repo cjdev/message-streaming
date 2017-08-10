@@ -23,7 +23,6 @@ class KinesisTest extends FlatSpec with Matchers {
   "subscribe" should "put things in the stream when new records are processed" in {
     //given
     val (factory, sub) = subscribe(r => r.getData.array)
-    val stream = sub.iterator
     val checkpointer = new StubCheckpointer()
     val recordsToSend: List[Record] =
       messagesToSend.map { bytes =>
@@ -40,7 +39,7 @@ class KinesisTest extends FlatSpec with Matchers {
     )
 
     //then
-    messagesToSend.zip(stream.toStream).foreach({ case (x, y) => x should be(y.data)})
+    messagesToSend.zip(sub.take(3).toList).foreach({ case (x, y) => x should be(y.data) })
   }
 
   "produce" should "use the provided kinesis producer and stream name" in {
@@ -67,7 +66,7 @@ class KinesisTest extends FlatSpec with Matchers {
     val publish = produce(streamName, stubProducer)
 
     //when
-    messagesToSend.foreach(publish)
+    messagesToSend.foreach(publish._1)
 
     //then
     sentMessages should be(messagesToSend)

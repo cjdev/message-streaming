@@ -3,14 +3,11 @@ package com.cj.messagestreaming.kinesis
 import java.nio.ByteBuffer
 import java.util.concurrent.{TimeUnit, Future => FutureJ}
 import java.util.function.{Function => FunctionJ}
-import java.util.stream.{Stream => StreamJ}
 
 import com.amazonaws.services.kinesis.model.Record
 import com.amazonaws.services.kinesis.producer.{KinesisProducer, UserRecordResult}
 import com.cj.messagestreaming.Java._
 import com.cj.messagestreaming._
-
-import scala.collection.JavaConverters._
 
 object Java {
 
@@ -67,4 +64,5 @@ object Java {
       producer.destroy()
     }
   }
+
 }

@@ -4,11 +4,11 @@ import java.util.function.Consumer
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor
-import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason
+import com.amazonaws.services.kinesis.clientlibrary.types._
 import com.amazonaws.services.kinesis.model.Record
 import com.cj.messagestreaming._
-import org.slf4j.LoggerFactory
+import org.slf4s.Logging
 
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
@@ -19,9 +19,7 @@ class CheckpointingRecordProcessor[A](
                                        queue: Queue[Checkpointable[A]],
                                        time: => Long = System.currentTimeMillis(),
                                        readRecord: Record => A
-                                     ) extends IRecordProcessor {
-
-  private lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
+                                     ) extends IRecordProcessor with Logging {
 
   private var checkpointers: mutable.Queue[Future[Unit => Unit]] = mutable.Queue.empty
   private val checkpointInterval = 60000L // one minute
@@ -37,7 +35,7 @@ class CheckpointingRecordProcessor[A](
     checkpointers.enqueue(checkpointerPromise.future)
 
     val checkpointer: Unit => Unit = _ => {
-      logger.info(s"Setting checkpoint: ${record.getSequenceNumber}")
+      log.info(s"Setting checkpoint: ${record.getSequenceNumber}")
       iRecordProccessorCheckpointer.checkpoint(record)
     }
 
@@ -61,12 +59,12 @@ class CheckpointingRecordProcessor[A](
       Await.result(done.last, Duration.Zero)() //we're awaiting a future that is already complete
     }
     checkpointers = remaining
-    logger.info(s"Checkpoint queue length: ${checkpointers.length}")
+    log.info(s"Checkpoint queue length: ${checkpointers.length}")
     nextCheckpointTime = time + checkpointInterval
   }
 
   override def initialize(initializationInput: InitializationInput): Unit = {
-    logger.info(s"Initializing record processor with shardId ${initializationInput.getShardId} and sequence number ${initializationInput.getExtendedSequenceNumber}.")
+    log.info(s"Initializing record processor with shardId ${initializationInput.getShardId} and sequence number ${initializationInput.getExtendedSequenceNumber}.")
     nextCheckpointTime = time + checkpointInterval
   }
 
@@ -77,7 +75,7 @@ class CheckpointingRecordProcessor[A](
   }
 
   override def shutdown(shutdownInput: ShutdownInput): Unit = {
-    logger.info(s"Shutting down record processor. Reason: ${shutdownInput.getShutdownReason}.")
+    log.info(s"Shutting down record processor. Reason: ${shutdownInput.getShutdownReason}.")
     queue.done()
     if (shutdownInput.getShutdownReason == ShutdownReason.TERMINATE) {
       checkpointers.foreach(x => Await.ready(x, Duration.Inf))

@@ -1,13 +1,15 @@
 package com.cj
 
+import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.concurrent.duration.Duration
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 package object messagestreaming {
 
   trait Queue[T] {
     def add(t: T): Unit
+
     def done(): Unit
   }
 
@@ -15,28 +17,22 @@ package object messagestreaming {
     def close(): Unit
   }
 
-  sealed abstract class Subscription[+T] extends Iterable[Checkpointable[T]] {
-
-    def mapWithCheckpointing(f: T => Unit): Unit =
-      Subscription.process(this)(f)
-
-    def map[U](f: T => U): Subscription[U] =
-      Subscription.map(this)(f)
+  sealed trait Subscription[+T] extends Iterator[Checkpointable[T]] {
+    def mapWithCheckpointing(f: T => Unit): Unit
   }
 
   object Subscription {
 
-    def apply[T](s: Iterator[Checkpointable[T]]): Subscription[T] =
+    def apply[T](it: Iterator[Checkpointable[T]]): Subscription[T] =
       new Subscription[T] {
-        def iterator: Iterator[Checkpointable[T]] = s
+
+        def mapWithCheckpointing(f: T => Unit): Unit =
+          it.foreach { case Checkpointable(data, callback) => f(data); callback() }
+
+        def hasNext: Boolean = it.hasNext
+
+        def next(): Checkpointable[T] = it.next()
       }
-
-    def map[T, U](sub: Subscription[T])(f: T => U): Subscription[U] =
-      apply(sub.iterator.map(_.map(f)))
-
-    def process[T](sub: Subscription[T])(f: T => Unit): Unit =
-      sub.iterator.foreach { case Checkpointable(data, callback) => f(data); callback() }
-
   }
 
   case class Checkpointable[+T](data: T, checkpointCallback: CheckpointCallback) {
@@ -62,52 +58,60 @@ package object messagestreaming {
 
   type CheckpointCallback = Unit => Unit
 
-  trait Publication[-T, +R] extends (T => Future[R]) with Closable { self =>
+  sealed trait Publication[-T, +R] extends (T => Future[R]) with Closable {
 
     final def premap[T1](f: T1 => T): Publication[T1, R] =
-      new Publication[T1, R] {
-        def apply(v1: T1): Future[R] = self(f(v1))
-        def close(): Unit = self.close()
-      }
+      Publication(t1 => this.apply(f(t1)), this.close())
 
     final def map[R1](f: R => R1)
                      (implicit ec: ExecutionContext): Publication[T, R1] =
-      new Publication[T, R1] {
-        def apply(v1: T): Future[R1] = self(v1).map(f)
-        def close(): Unit = self.close()
-      }
+      Publication(t => this.apply(t).map(f), this.close())
   }
 
   object Publication {
 
-    class RetryFailure[R](val response: R) extends Throwable
-
-    def retry[T, R](
-                     publication: Publication[T, R],
-                     successCheck: R => Boolean,
-                     responseTimeout: Duration,
-                     initialDelay: Duration,
-                     increment: Duration => Duration,
-                     maxRetries: Long
-                   )(implicit ec: ExecutionContext): Publication[T, R] =
+    def apply[T, R](send: T => Future[R], onClose: => Unit): Publication[T, R] =
       new Publication[T, R] {
 
-        def apply(v1: T): Future[R] = {
+        private lazy val runClose: Unit = onClose
 
-          def helper(retries: Long, delay: Duration): Try[R] = {
+        def apply(v1: T): Future[R] =
+          Try(send(v1)).recover { case e => Future.failed(e) }.get
 
-            Try(Await.result(publication(v1), responseTimeout)) match {
-              case s@Success(r) if successCheck(r) => s
-              case s@Success(r) if retries <= 0 => Failure(new RetryFailure(r))
-              case f@Failure(e) if retries <= 0 => f
-              case _ => helper(retries - 1, increment(delay))
-            }
-          }
+        def close(): Unit = runClose
+      }
 
-          Future(helper(maxRetries, initialDelay).get)
+    def blocking[T, R](responseTimeout: Duration)
+                      (publication: Publication[T, R]): Publication[T, R] = {
+
+      def block(t: T): Future[R] = Await.ready(publication(t), responseTimeout)
+
+      Publication(block, publication.close())
+    }
+
+    def retrying[T, R](
+                        maxRetries: Long,
+                        responseTimeout: Duration = 5 seconds,
+                        initialDelay: Duration = 100 millis,
+                        incrementDelay: Duration => Duration = 2 * _,
+                        maxDelay: Duration = 30 seconds
+                      )(publication: Publication[T, R])
+                      (implicit ec: ExecutionContext): Publication[T, R] = {
+
+      def retry(v1: T, retries: Long, delay: Duration): Try[R] =
+        Try(Await.result(publication(v1), responseTimeout)) match {
+          case s@Success(_) => s
+          case f@Failure(_) if retries <= 0 => f
+          case _ =>
+            Thread.sleep((delay min maxDelay).toMillis)
+            retry(v1, retries - 1, incrementDelay(delay))
         }
 
-        def close(): Unit = publication.close()
-      }
+      def begin(v1: T): Future[R] =
+        Future(retry(v1, maxRetries, initialDelay).get)
+
+      Publication(begin, publication.close())
+    }
   }
+
 }

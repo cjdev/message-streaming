@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>message-streaming_2.11</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
 
     <properties>
         <scala-major_version>2.11</scala-major_version>
@@ -20,6 +20,7 @@
         <amazon-kinesis-producer_version>0.12.5</amazon-kinesis-producer_version>
         <scalatest_version>3.0.3</scalatest_version>
         <commons-logging_version>1.2</commons-logging_version>
+        <slf4s-api_version>1.7.25</slf4s-api_version>
         <aws-java-sdk-core_version>1.11.151</aws-java-sdk-core_version>
     </properties>
 
@@ -130,22 +131,20 @@
         <repository>
             <id>libs-releases</id>
             <name>CJ libraries</name>
-            <url>http://maven.dev.cj.com:8081/nexus/content/repositories/releases</url>
+            <url>
+                http://maven.dev.cj.com:8081/nexus/content/repositories/releases
+            </url>
         </repository>
         <snapshotRepository>
             <id>libs-snapshots</id>
             <name>CJ library snapshots</name>
-            <url>http://maven.dev.cj.com:8081/nexus/content/repositories/snapshots</url>
+            <url>
+                http://maven.dev.cj.com:8081/nexus/content/repositories/snapshots
+            </url>
         </snapshotRepository>
     </distributionManagement>
 
     <dependencies>
-
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>${scala-minor_version}</version>
-        </dependency>
 
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -164,6 +163,12 @@
             <artifactId>scalatest_${scala-major_version}</artifactId>
             <version>${scalatest_version}</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4s</groupId>
+            <artifactId>slf4s-api_${scala-major_version}</artifactId>
+            <version>${slf4s-api_version}</version>
         </dependency>
 
     </dependencies>
@@ -187,6 +192,12 @@
                 <groupId>commons-logging</groupId>
                 <artifactId>commons-logging</artifactId>
                 <version>${commons-logging_version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4s-api_version}</version>
             </dependency>
 
         </dependencies>

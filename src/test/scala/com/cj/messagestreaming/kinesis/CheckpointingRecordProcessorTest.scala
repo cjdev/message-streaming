@@ -4,11 +4,10 @@ import java.nio.ByteBuffer
 import java.util
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
-import com.cj.messagestreaming._
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor
-import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason
+import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.model.Record
+import com.cj.messagestreaming._
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConversions._
@@ -23,9 +22,7 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
   def makeRecord(s: String): Record = {
     new Record()
       .withData(ByteBuffer.wrap(s.getBytes))
-      .withSequenceNumber({
-        sequence += 1; sequence.toString
-      })
+      .withSequenceNumber({ sequence += 1; sequence.toString })
   }
 
   def consumeOne(i: util.Iterator[Checkpointable[Array[Byte]]]): Unit = {

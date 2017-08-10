@@ -2,7 +2,6 @@ package com.cj.messagestreaming
 
 import java.util.concurrent.{Future => FutureJ}
 import java.util.function.{Function => FunctionJ}
-import java.util.stream.{Stream => StreamJ}
 
 object Java {
 
@@ -17,4 +16,5 @@ object Java {
 
     def close(): Unit
   }
+
 }

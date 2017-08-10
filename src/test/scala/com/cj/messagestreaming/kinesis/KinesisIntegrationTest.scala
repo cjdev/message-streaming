@@ -4,7 +4,6 @@ import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.regions.{Region, Regions}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
-import com.amazonaws.services.kinesis.producer.UserRecordResult
 import com.cj.messagestreaming.Publication
 import com.cj.tags.IntegrationTest
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}

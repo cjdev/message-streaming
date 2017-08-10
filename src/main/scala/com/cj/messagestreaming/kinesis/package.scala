@@ -2,42 +2,37 @@ package com.cj.messagestreaming
 
 import java.nio.ByteBuffer
 
-import com.amazonaws.auth.{AWSCredentialsProvider, AWSStaticCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
+import com.amazonaws.auth._
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2._
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker._
 import com.amazonaws.services.kinesis.model.Record
-import com.amazonaws.services.kinesis.producer.{KinesisProducer, KinesisProducerConfiguration}
+import com.amazonaws.services.kinesis.producer._
 import com.google.common.util.concurrent.{FutureCallback, Futures, ListenableFuture}
-import org.slf4j.LoggerFactory
+import org.slf4s.Logging
 
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
-import scala.collection.JavaConverters._
 
-package object kinesis {
-
-  private lazy val logger = LoggerFactory.getLogger(getClass.getCanonicalName)
+package object kinesis extends Logging {
 
   def makePublication[T](
                           config: KinesisProducerConfig,
                           serialize: T => Array[Byte]
-                        ): Publication[T, PublishResult] =
-    new Publication[T, PublishResult] {
+                        ): Publication[T, PublishResult] = {
 
-      private val producer = produce(
-        config.streamName,
-        getKinesisProducer(
-          config.accessKeyId,
-          config.secretKey,
-          config.region
-        )
+    val (send, close) = produce(
+      streamName = config.streamName,
+      producer = getKinesisProducer(
+        accessKeyId = config.accessKeyId,
+        secretKey = config.secretKey,
+        region = config.region
       )
+    )
 
-      def close(): Unit = producer.close()
-
-      def apply(t: T): Future[PublishResult] = producer(serialize(t))
-    }
+    Publication(t => send(serialize(t)), close({}))
+  }
 
   def makeRecordSubscription(config: KinesisConsumerConfig): Subscription[Record] =
     makeSubscription(config, identity)
@@ -72,55 +67,62 @@ package object kinesis {
       .recordProcessorFactory(recordProcessorFactory)
       .config(kinesisConfig).build()
 
-    // TODO: If the worker shuts down, the associated subscription blocks forever
-    // TODO: Should we notify the client if this happens?
-    // TODO: Should we try to resurrect the worker if this happens?
+    // TODO:
+    // If the worker shuts down, the associated subscription blocks forever
+    //   - Should we notify the client if this happens?
+    //   - Should we try to resurrect the worker if this happens?
     Future(Try(worker.run())).onComplete {
       case Success(_) =>
-        logger.error("Disaster strikes! Unexpected worker completion!")
+        log.error("Disaster strikes! Unexpected worker completion!")
       case Failure(e) =>
-        logger.error("Disaster strikes! Unexpected worker termination!", e)
+        log.error("Disaster strikes! Unexpected worker termination!", e)
     }
 
     sub
   }
 
-  protected[kinesis] def produce(
-                                  streamName: String,
-                                  producer: KinesisProducer
-                                ): Publication[Array[Byte], PublishResult] = {
-    new Publication[Array[Byte], PublishResult] {
+  protected[kinesis] def produce(streamName: String, producer: KinesisProducer):
+  (Array[Byte] => Future[PublishResult], Unit => Unit) = {
 
-      private var shutdown = false
+    var shutdown = false
 
-      def asScalaFuture[A](lf: ListenableFuture[A]): Future[A] = {
-        val p = Promise[A]
-        Futures.addCallback(lf,
-          new FutureCallback[A] {
-            def onSuccess(result: A): Unit = p.success(result)
+    def asScalaFuture[A](lf: ListenableFuture[A]): Future[A] = {
+      val p = Promise[A]
+      Futures.addCallback(lf,
+        new FutureCallback[A] {
+          def onSuccess(result: A): Unit = p.success(result)
 
-            def onFailure(t: Throwable): Unit = p.failure(t)
-          })
-        p.future
-      }
+          def onFailure(t: Throwable): Unit = p.failure(t)
+        })
+      p.future
+    }
 
-      def apply(byteArray: Array[Byte]): Future[PublishResult] = {
-        if (!shutdown) {
-          val time = System.currentTimeMillis.toString
-          val bytes = ByteBuffer.wrap(byteArray)
-          val kinesisFuture = producer.addUserRecord(streamName, time, bytes)
-          asScalaFuture(kinesisFuture).map(PublishResult.fromKinesis)
-        } else {
-          Future.failed(new Throwable("Publication is shutting down."))
-        }
-      }
-
-      def close(): Unit = {
-        shutdown = true
-        producer.flushSync()
-        producer.destroy()
+    def send(byteArray: Array[Byte]): Future[PublishResult] = {
+      if (!shutdown) {
+        val time = System.currentTimeMillis.toString
+        val bytes = ByteBuffer.wrap(byteArray)
+        // TODO:
+        // addUserRecord can throw if:
+        //   (1) time is zero chars or bigger than 256 chars
+        //       (can't happen, since user doesn't get to specify),
+        //   (2) if bytes is bigger than 1MiB
+        //       (we should probably notify the user somehow), or
+        //   (3) the child process is dead
+        //       (we should probably try to resurrect the child).
+        val kinesisFuture = producer.addUserRecord(streamName, time, bytes)
+        asScalaFuture(kinesisFuture).map(PublishResult.fromKinesis)
+      } else {
+        Future.failed(new Throwable("Publication is shutting down."))
       }
     }
+
+    def close(u: Unit): Unit = {
+      shutdown = true
+      producer.flushSync()
+      producer.destroy()
+    }
+
+    (send, close)
   }
 
   protected[kinesis] def getKinesisProducer(
