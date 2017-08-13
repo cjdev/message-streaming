@@ -45,18 +45,14 @@ object Subscription {
 
 sealed trait Publication[-T, +R] extends (T => Future[R]) with Closable {
 
-  final def bind(tf: Future[T])
-                (implicit ec: ExecutionContext): Future[R] =
+  final def bind(tf: Future[T])(implicit ec: ExecutionContext): Future[R] =
     tf.flatMap(this.apply)
 
-  final def bindTry(tt: Try[T])
-                   (implicit ec: ExecutionContext): Future[R] =
+  final def bindTry(tt: Try[T])(implicit ec: ExecutionContext): Future[R] =
     Future.fromTry(tt).flatMap(this.apply)
 
-  final def traverse[M[X] <: TraversableOnce[X], T1 <: T, R1 >: R]
-  (ts: M[T1])
-  (implicit cbf: CanBuildFrom[M[T1], R1, M[R1]], executor: ExecutionContext):
-  Future[M[R1]] =
+  final def traverse[M[X] <: TraversableOnce[X], T1 <: T, R1 >: R](ts: M[T1])
+  (implicit cbf: CanBuildFrom[M[T1], R1, M[R1]], ec: ExecutionContext): Future[M[R1]] =
     Future.traverse(ts)(this.apply)
 
   final def block(timeout: Duration)(t: T): Try[R] =
@@ -65,8 +61,7 @@ sealed trait Publication[-T, +R] extends (T => Future[R]) with Closable {
   final def premap[T1](f: T1 => T): Publication[T1, R] =
     Publication(t1 => this.apply(f(t1)), this.close())
 
-  final def map[R1](f: R => R1)
-                   (implicit ec: ExecutionContext): Publication[T, R1] =
+  final def map[R1](f: R => R1)(implicit ec: ExecutionContext): Publication[T, R1] =
     Publication(t => this.apply(t).map(f), this.close())
 }
 
@@ -114,7 +109,7 @@ object Publication {
                       incrementDelay: Duration => Duration = 2 * _,
                       maxDelay: Duration = 30 seconds
                     )(original: Publication[T, R])
-                    (implicit ec: ExecutionContext): Publication[T, R] = {
+                     (implicit ec: ExecutionContext): Publication[T, R] = {
 
     def retry(v1: T, retries: Long, delay: Duration): Try[R] =
       Try(Await.result(original(v1), responseTimeout)) match {
@@ -141,7 +136,7 @@ object Publication {
                               preprocess: T1 => T,
                               postprocess: T1 => R => R1
                             )(original: Publication[T, R])
-                            (implicit ec: ExecutionContext): Publication[T1, R1] = {
+                             (implicit ec: ExecutionContext): Publication[T1, R1] = {
 
     def deco = (t1: T1) => original(preprocess(t1)).map(postprocess(t1))
 
@@ -154,9 +149,8 @@ object Publication {
     *
     * You should not reuse the original publication.
     */
-  def traversed[M[X] <: TraversableOnce[X], T, R]
-  (original: Publication[T, R])
-  (implicit cbf: CanBuildFrom[M[T], R, M[R]], executor: ExecutionContext):
+  def traversed[M[X] <: TraversableOnce[X], T, R](original: Publication[T, R])
+  (implicit cbf: CanBuildFrom[M[T], R, M[R]], ec: ExecutionContext):
   Publication[M[T], M[R]] =
     Publication(Future.traverse(_)(original), original.close())
 }

@@ -40,12 +40,12 @@ object PublishResult {
   )
 }
 
-case class KinesisProducerConfig private[kinesis](
-                                                   accessKeyId: Option[String],
-                                                   secretKey: Option[String],
-                                                   region: Option[String],
-                                                   streamName: String
-                                                 ) {
+case class KinesisProducerConfig private(
+                                          accessKeyId: Option[String],
+                                          secretKey: Option[String],
+                                          region: Option[String],
+                                          streamName: String
+                                        ) {
   def summary: String =
     s"""KinesisProducerConfig: $this
        |    accessKeyId: $accessKeyId
@@ -67,15 +67,15 @@ object KinesisProducerConfig {
   )
 }
 
-case class KinesisConsumerConfig private[kinesis](
-                                                   accessKeyId: Option[String],
-                                                   secretKey: Option[String],
-                                                   region: Option[String],
-                                                   streamName: String,
-                                                   applicationName: String,
-                                                   workerId: String,
-                                                   initialPositionInStream: InitialPositionInStream
-                                                 ) {
+case class KinesisConsumerConfig private(
+                                          accessKeyId: Option[String],
+                                          secretKey: Option[String],
+                                          region: Option[String],
+                                          streamName: String,
+                                          applicationName: String,
+                                          workerId: String,
+                                          initialPositionInStream: InitialPositionInStream
+                                        ) {
   def summary: String =
     s"""KinesisConsumerConfig: $this
        |    accessKeyId: $accessKeyId
