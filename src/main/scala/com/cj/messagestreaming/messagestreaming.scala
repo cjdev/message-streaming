@@ -130,17 +130,20 @@ object Publication {
     * Creates a [[Publication]] that combines the effects of the supplied
     * functions. Useful for adding arbitrary effects, for example logging.
     *
+    * More general than using `premap` and `map` separately, since the
+    * postprocessing of the output `R1` value can vary with the input `T1` value
+    *
     * You should not reuse the original publication.
     */
-  def decorate[T, R, T1, R1](
-                              preprocess: T1 => T,
-                              postprocess: T1 => R => R1
-                            )(original: Publication[T, R])
-                             (implicit ec: ExecutionContext): Publication[T1, R1] = {
+  def decorated[T, R, T1, R1](
+                               preprocess: T1 => T,
+                               postprocess: T1 => R => R1
+                             )(original: Publication[T, R])
+                              (implicit ec: ExecutionContext): Publication[T1, R1] = {
 
-    def deco = (t1: T1) => original(preprocess(t1)).map(postprocess(t1))
+    def decorate = (t1: T1) => original(preprocess(t1)).map(postprocess(t1))
 
-    Publication[T1, R1](deco, original.close())
+    Publication[T1, R1](decorate, original.close())
   }
 
   /**
