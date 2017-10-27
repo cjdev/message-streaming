@@ -64,7 +64,8 @@ class CheckpointingRecordProcessor[A](
   }
 
   override def initialize(initializationInput: InitializationInput): Unit = {
-    log.info(s"Initializing record processor with shardId ${initializationInput.getShardId} and sequence number ${initializationInput.getExtendedSequenceNumber}.")
+    log.info(s"Initializing record processor with shardId ${initializationInput.getShardId}" +
+      s"and sequence number ${initializationInput.getExtendedSequenceNumber}.")
     nextCheckpointTime = time + checkpointInterval
   }
 

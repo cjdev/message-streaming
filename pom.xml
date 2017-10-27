@@ -6,22 +6,22 @@
 
     <groupId>com.cj</groupId>
     <artifactId>message-streaming_2.11</artifactId>
-    <version>3.1.0</version>
+    <version>3.2.0</version>
 
     <properties>
         <scala-major_version>2.11</scala-major_version>
         <scala-minor_version>2.11.11</scala-minor_version>
         <java_version>1.8</java_version>
-        <scala-maven-plugin_version>3.2.2</scala-maven-plugin_version>
-        <maven-compiler-plugin_version>3.6.1</maven-compiler-plugin_version>
+        <scala-maven-plugin_version>3.3.1</scala-maven-plugin_version>
+        <maven-compiler-plugin_version>3.7.0</maven-compiler-plugin_version>
         <maven-enforcer-plugin_version>1.4.1</maven-enforcer-plugin_version>
         <scalatest-maven-plugin_version>1.0</scalatest-maven-plugin_version>
-        <amazon-kinesis-client_version>1.7.6</amazon-kinesis-client_version>
+        <amazon-kinesis-client_version>1.8.7</amazon-kinesis-client_version>
         <amazon-kinesis-producer_version>0.12.5</amazon-kinesis-producer_version>
-        <scalatest_version>3.0.3</scalatest_version>
+        <scalatest_version>3.0.4</scalatest_version>
         <commons-logging_version>1.2</commons-logging_version>
         <slf4s-api_version>1.7.25</slf4s-api_version>
-        <aws-java-sdk-core_version>1.11.151</aws-java-sdk-core_version>
+        <aws-java-sdk-core_version>1.11.221</aws-java-sdk-core_version>
     </properties>
 
     <build>
@@ -76,6 +76,7 @@
     </build>
 
     <profiles>
+
         <profile>
             <id>default</id>
             <activation>
@@ -102,6 +103,7 @@
                 </plugins>
             </build>
         </profile>
+
         <profile>
             <id>all-tests</id>
             <activation>
@@ -125,6 +127,7 @@
                 </plugins>
             </build>
         </profile>
+
     </profiles>
 
     <distributionManagement>

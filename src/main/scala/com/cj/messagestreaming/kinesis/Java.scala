@@ -64,5 +64,4 @@ object Java {
       producer.destroy()
     }
   }
-
 }

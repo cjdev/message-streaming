@@ -3,7 +3,7 @@ package com.cj.messagestreaming.kinesis
 import java.nio.ByteBuffer
 import java.util
 
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.{IPreparedCheckpointer, IRecordProcessorCheckpointer}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.model.Record
@@ -42,7 +42,7 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 
       override def checkpoint(record: Record): Unit = checkpoints = record :: checkpoints
     }
-    var records = List("x1", "x2", "x3").map(makeRecord _)
+    var records = List("x1", "x2", "x3").map(makeRecord)
     val processRecordsInput: ProcessRecordsInput = new ProcessRecordsInput().withCheckpointer(checkpointer).withRecords(records)
   }
 
@@ -93,6 +93,15 @@ class CheckpointingRecordProcessorTest extends FlatSpec with Matchers {
 }
 
 class StubCheckpointer extends IRecordProcessorCheckpointer {
+
+  def prepareCheckpoint(): IPreparedCheckpointer = ???
+
+  def prepareCheckpoint(record: Record): IPreparedCheckpointer = ???
+
+  def prepareCheckpoint(s: String): IPreparedCheckpointer = ???
+
+  def prepareCheckpoint(s: String, l: Long): IPreparedCheckpointer = ???
+
   override def checkpoint(): Unit = {}
 
   override def checkpoint(record: Record): Unit = {}

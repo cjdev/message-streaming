@@ -7,6 +7,15 @@ import scala.language.higherKinds
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
+trait Queue[T] {
+  def add(t: T): Unit
+  def done(): Unit
+}
+
+trait Closable {
+  def close(): Unit
+}
+
 case class Checkpointable[+T](data: T, checkpointCallback: CheckpointCallback) {
 
   def map[U](f: T => U): Checkpointable[U] =
@@ -45,22 +54,44 @@ object Subscription {
 
 sealed trait Publication[-T, +R] extends (T => Future[R]) with Closable {
 
+  /**
+    * Asynchronously publish a `Future[T]`, resulting in a `Future[R]` that will
+    * execute when the `Future[T]` completes.
+    */
   final def bind(tf: Future[T])(implicit ec: ExecutionContext): Future[R] =
     tf.flatMap(this.apply)
 
+  /**
+    * Asynchronously publish a `Try[T]`, if it is a [[Success]],
+    * resulting in a failed [[Future]] if it is a [[Failure]].
+    */
   final def bindTry(tt: Try[T])(implicit ec: ExecutionContext): Future[R] =
     Future.fromTry(tt).flatMap(this.apply)
 
+  /**
+    * Traverse a collection `M[T]` of `T`s, publishing each asynchronously, and
+    * collecting the disparate `Future[R]` values into a single `Future[ M[R] ]`
+    * value.
+    */
   final def traverse[M[X] <: TraversableOnce[X], T1 <: T, R1 >: R](ts: M[T1])
   (implicit cbf: CanBuildFrom[M[T1], R1, M[R1]], ec: ExecutionContext): Future[M[R1]] =
     Future.traverse(ts)(this.apply)
 
+  /**
+    * Synchronously publish a `T`.
+    */
   final def block(timeout: Duration)(t: T): Try[R] =
     Try { Await.result(this.apply(t), timeout) }
 
+  /**
+    * Returns a [[Publication]] that pre-processes T` values before publishing.
+    */
   final def premap[T1](f: T1 => T): Publication[T1, R] =
     Publication(t1 => this.apply(f(t1)), this.close())
 
+  /**
+    * Returns a [[Publication]] that processes R` values before completing.
+    */
   final def map[R1](f: R => R1)(implicit ec: ExecutionContext): Publication[T, R1] =
     Publication(t => this.apply(t).map(f), this.close())
 }

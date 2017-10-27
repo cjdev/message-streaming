@@ -31,7 +31,13 @@ package object kinesis extends Logging {
       )
     )
 
-    Publication(t => send(serialize(t)), close({}))
+    def sendAndLogOnError(t: T): Future[PublishResult] =
+      send(serialize(t)).recoverWith { case err: Throwable =>
+        log.error(s"Failed to send: $t. Cause: $err", err)
+        Future.failed(err)
+      }
+
+    Publication(sendAndLogOnError, close(()))
   }
 
   def makeRecordSubscription(config: KinesisConsumerConfig): Subscription[Record] =
@@ -149,14 +155,6 @@ package object kinesis extends Logging {
 
   protected[kinesis] def subscribe[T](read: Record => T):
   (IRecordProcessorFactory, Subscription[T]) = {
-
-    var mostRecentRecordProcessed: Record = null
-    var secondMostRecentRecordProcessed: Record = null
-
-    def onProcess(record: Record): Unit = {
-      secondMostRecentRecordProcessed = mostRecentRecordProcessed
-      mostRecentRecordProcessed = record
-    }
 
     val q = new IterableBlockingQueue[Checkpointable[T]]
 
