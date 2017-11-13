@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.cj</groupId>
-    <artifactId>message-streaming_2.11</artifactId>
+    <artifactId>message-streaming_2.12</artifactId>
     <version>3.2.0</version>
 
     <properties>
-        <scala-major_version>2.11</scala-major_version>
-        <scala-minor_version>2.11.11</scala-minor_version>
+        <scala-major_version>2.12</scala-major_version>
+        <scala-minor_version>2.12.4</scala-minor_version>
         <java_version>1.8</java_version>
         <scala-maven-plugin_version>3.3.1</scala-maven-plugin_version>
         <maven-compiler-plugin_version>3.7.0</maven-compiler-plugin_version>
