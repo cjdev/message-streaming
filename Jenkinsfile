@@ -1,7 +1,7 @@
 
 @Library('gitlab.cj.com/ad-systems/jenkins-utils@master') _
 
-node("build130") {
+node("!outoforder") {
   ansiColor('xterm') {
     checkout scm
     gitCommit = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
