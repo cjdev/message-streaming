@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>message-streaming_2.11</artifactId>
-    <version>3.3.1</version>
+    <version>3.3.2</version>
 
     <properties>
         <scala-major_version>2.11</scala-major_version>
@@ -16,12 +16,13 @@
         <maven-compiler-plugin_version>3.7.0</maven-compiler-plugin_version>
         <maven-enforcer-plugin_version>1.4.1</maven-enforcer-plugin_version>
         <scalatest-maven-plugin_version>1.0</scalatest-maven-plugin_version>
-        <amazon-kinesis-client_version>1.8.7</amazon-kinesis-client_version>
-        <amazon-kinesis-producer_version>0.12.6</amazon-kinesis-producer_version>
+        <amazon-kinesis-client_version>1.9.2</amazon-kinesis-client_version>
+        <amazon-kinesis-producer_version>0.12.10</amazon-kinesis-producer_version>
         <scalatest_version>3.0.4</scalatest_version>
         <commons-logging_version>1.2</commons-logging_version>
         <slf4s-api_version>1.7.25</slf4s-api_version>
-        <aws-java-sdk-core_version>1.11.221</aws-java-sdk-core_version>
+        <aws-java-sdk-sts_version>1.11.400</aws-java-sdk-sts_version>
+        <aws-java-sdk-core_version>1.11.400</aws-java-sdk-core_version>
     </properties>
 
     <build>
@@ -172,6 +173,12 @@
             <groupId>org.slf4s</groupId>
             <artifactId>slf4s-api_${scala-major_version}</artifactId>
             <version>${slf4s-api_version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-sts</artifactId>
+            <version>${aws-java-sdk-sts_version}</version>
         </dependency>
 
     </dependencies>
