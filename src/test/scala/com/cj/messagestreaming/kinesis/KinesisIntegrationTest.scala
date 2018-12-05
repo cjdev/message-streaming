@@ -34,7 +34,7 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
 
   def ensureNoDynamoTable(): Unit = {
     //  withCredentials(new BasicAWSCredentials(awsAccessKeyId, awsSecretAccessKey))
-    val client = new AmazonDynamoDBClientBuilder().withRegion(region).build()
+    val client = AmazonDynamoDBClientBuilder.standard.withRegion(region).build()
     val dynamoDB: DynamoDB = new DynamoDB(client)
 
     Try(dynamoDB.getTable(applicationName).delete()) match {
