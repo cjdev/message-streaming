@@ -1,7 +1,6 @@
 package com.cj.messagestreaming
 package kinesis
 
-import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream
 import com.amazonaws.services.kinesis.producer.{Attempt, UserRecordResult}
 
@@ -45,8 +44,7 @@ case class KinesisProducerConfig private(
                                           accessKeyId: Option[String],
                                           secretKey: Option[String],
                                           region: Option[String],
-                                          streamName: String,
-                                          credentialsProvider: Option[AWSCredentialsProvider]
+                                          streamName: String
                                         ) {
   def summary: String =
     s"""KinesisProducerConfig: $this
@@ -63,10 +61,9 @@ object KinesisProducerConfig {
              streamName: String,
              accessKeyId: String = null,
              secretKey: String = null,
-             region: String = null,
-             credentialsProvider: AWSCredentialsProvider = null
+             region: String = null
            ): KinesisProducerConfig = KinesisProducerConfig(
-    Option(accessKeyId), Option(secretKey), Option(region), streamName, Option(credentialsProvider)
+    Option(accessKeyId), Option(secretKey), Option(region), streamName
   )
 }
 
@@ -77,8 +74,7 @@ case class KinesisConsumerConfig private(
                                           streamName: String,
                                           applicationName: String,
                                           workerId: String,
-                                          initialPositionInStream: InitialPositionInStream,
-                                          credentialsProvider: Option[AWSCredentialsProvider]
+                                          initialPositionInStream: InitialPositionInStream
                                         ) {
   def summary: String =
     s"""KinesisConsumerConfig: $this
@@ -101,10 +97,9 @@ object KinesisConsumerConfig {
              accessKeyId: String = null,
              secretKey: String = null,
              region: String = null,
-             initialPositionInStream: InitialPositionInStream = InitialPositionInStream.LATEST,
-             credentialsProvider: AWSCredentialsProvider = null
+             initialPositionInStream: InitialPositionInStream = InitialPositionInStream.LATEST
            ): KinesisConsumerConfig = KinesisConsumerConfig(
     Option(accessKeyId), Option(secretKey), Option(region),
-    streamName, applicationName, workerId, initialPositionInStream, Option(credentialsProvider)
+    streamName, applicationName, workerId, initialPositionInStream
   )
 }
