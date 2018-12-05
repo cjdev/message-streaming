@@ -1,8 +1,6 @@
 package com.cj.messagestreaming.kinesis
 
-import com.amazonaws.auth.BasicAWSCredentials
-import com.amazonaws.regions.{Region, Regions}
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import com.cj.messagestreaming.Publication
 import com.cj.tags.IntegrationTest
@@ -23,8 +21,8 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
     )
   }
 
-  lazy val awsAccessKeyId = envOrFail("AWS_ACCESS_KEY_ID")
-  lazy val awsSecretAccessKey = envOrFail("AWS_SECRET_ACCESS_KEY")
+  lazy val awsAccessKeyId: String = envOrFail("AWS_ACCESS_KEY_ID")
+  lazy val awsSecretAccessKey: String = envOrFail("AWS_SECRET_ACCESS_KEY")
   val region: String = "us-west-1"
   val stream: String = "testing"
   val applicationName = "test"
@@ -35,8 +33,8 @@ class KinesisIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter 
   after(ensureNoDynamoTable())
 
   def ensureNoDynamoTable(): Unit = {
-    val client = new AmazonDynamoDBClient(new BasicAWSCredentials(awsAccessKeyId, awsSecretAccessKey))
-    client.setRegion(Region.getRegion(Regions.fromName(region)))
+    //  withCredentials(new BasicAWSCredentials(awsAccessKeyId, awsSecretAccessKey))
+    val client = new AmazonDynamoDBClientBuilder().withRegion(region).build()
     val dynamoDB: DynamoDB = new DynamoDB(client)
 
     Try(dynamoDB.getTable(applicationName).delete()) match {
