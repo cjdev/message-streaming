@@ -52,12 +52,17 @@ package object kinesis extends Logging {
                          ): Subscription[T] = {
 
     val provider: AWSCredentialsProvider = {
-      for {
-        a <- config.accessKeyId
-        s <- config.secretKey
-      } yield new AWSStaticCredentialsProvider(new BasicAWSCredentials(a, s))
-    }.getOrElse(new DefaultAWSCredentialsProviderChain)
-
+      if (config.credentialsProvider.isDefined) {
+        config.credentialsProvider.get
+      }
+      else {
+        for {
+          a <- config.accessKeyId
+          s <- config.secretKey
+        } yield new AWSStaticCredentialsProvider(new BasicAWSCredentials(a, s))
+      }.getOrElse(new DefaultAWSCredentialsProviderChain)
+    }
+    
     val kinesisConfig = new KinesisClientLibConfiguration(
       config.applicationName,
       config.streamName,

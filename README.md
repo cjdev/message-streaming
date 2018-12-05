@@ -10,6 +10,6 @@ For Maven poms:
 <dependency>
     <groupId>com.cj</groupId>
     <artifactId>message-streaming_2.11</artifactId>
-    <version>3.3.1</version>
+    <version>3.3.2</version>
 </dependency>
 ```
