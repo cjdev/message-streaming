@@ -6,7 +6,7 @@
 
     <groupId>com.cj</groupId>
     <artifactId>message-streaming_2.11</artifactId>
-    <version>3.3.2</version>
+    <version>3.3.3-SNAPSHOT</version>
 
     <properties>
         <scala-major_version>2.11</scala-major_version>
@@ -21,7 +21,6 @@
         <scalatest_version>3.0.4</scalatest_version>
         <commons-logging_version>1.2</commons-logging_version>
         <slf4s-api_version>1.7.25</slf4s-api_version>
-        <aws-java-sdk-sts_version>1.11.400</aws-java-sdk-sts_version>
         <aws-java-sdk-core_version>1.11.400</aws-java-sdk-core_version>
     </properties>
 
@@ -154,12 +153,24 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>amazon-kinesis-client</artifactId>
             <version>${amazon-kinesis-client_version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>amazon-kinesis-producer</artifactId>
             <version>${amazon-kinesis-producer_version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -178,7 +189,6 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-sts</artifactId>
-            <version>${aws-java-sdk-sts_version}</version>
         </dependency>
 
     </dependencies>
@@ -187,15 +197,17 @@
         <dependencies>
 
             <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-library</artifactId>
-                <version>${scala-minor_version}</version>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-bom</artifactId>
+                <version>${aws-java-sdk-core_version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-core</artifactId>
-                <version>${aws-java-sdk-core_version}</version>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-library</artifactId>
+                <version>${scala-minor_version}</version>
             </dependency>
 
             <dependency>
