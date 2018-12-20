@@ -17,7 +17,7 @@
         <maven-enforcer-plugin_version>1.4.1</maven-enforcer-plugin_version>
         <scalatest-maven-plugin_version>1.0</scalatest-maven-plugin_version>
         <amazon-kinesis-client_version>1.9.2</amazon-kinesis-client_version>
-        <amazon-kinesis-producer_version>0.12.10</amazon-kinesis-producer_version>
+        <amazon-kinesis-producer_version>0.12.6</amazon-kinesis-producer_version>
         <scalatest_version>3.0.4</scalatest_version>
         <commons-logging_version>1.2</commons-logging_version>
         <slf4s-api_version>1.7.25</slf4s-api_version>
