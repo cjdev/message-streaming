@@ -5,23 +5,25 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.cj</groupId>
-    <artifactId>message-streaming_2.11</artifactId>
-    <version>3.3.3-SNAPSHOT</version>
+    <artifactId>message-streaming_2.12</artifactId>
+    <version>3.4.0-SNAPSHOT</version>
 
     <properties>
-        <scala-major_version>2.11</scala-major_version>
-        <scala-minor_version>2.11.11</scala-minor_version>
+        <scala-major_version>2.12</scala-major_version>
+        <scala-minor_version>2.12.8</scala-minor_version>
         <java_version>1.8</java_version>
-        <scala-maven-plugin_version>3.3.1</scala-maven-plugin_version>
-        <maven-compiler-plugin_version>3.7.0</maven-compiler-plugin_version>
+        <scala-maven-plugin_version>3.4.6</scala-maven-plugin_version>
+        <maven-compiler-plugin_version>3.8.0</maven-compiler-plugin_version>
         <maven-enforcer-plugin_version>1.4.1</maven-enforcer-plugin_version>
         <scalatest-maven-plugin_version>1.0</scalatest-maven-plugin_version>
         <amazon-kinesis-client_version>1.9.2</amazon-kinesis-client_version>
-        <amazon-kinesis-producer_version>0.12.6</amazon-kinesis-producer_version>
-        <scalatest_version>3.0.4</scalatest_version>
+<!--        <amazon-kinesis-client_version>1.10.0</amazon-kinesis-client_version>-->
+
+        <amazon-kinesis-producer_version>0.12.11</amazon-kinesis-producer_version>
+        <scalatest_version>3.0.8</scalatest_version>
         <commons-logging_version>1.2</commons-logging_version>
         <slf4s-api_version>1.7.25</slf4s-api_version>
-        <aws-java-sdk-core_version>1.11.400</aws-java-sdk-core_version>
+        <aws-java-sdk-core_version>1.11.570</aws-java-sdk-core_version>
     </properties>
 
     <build>
